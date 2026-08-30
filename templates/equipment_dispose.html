@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Dispose Equipment</h2>
+            <p class="text-muted mb-0">Record the disposal details for this equipment.</p>
+        </div>
+        <a href="{{ url_for('view_equipment', item_id=equipment.id) }}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <dl class="row mb-4">
+                <dt class="col-sm-3">Equipment</dt>
+                <dd class="col-sm-9">{{ equipment.name }}</dd>
+                <dt class="col-sm-3">Asset Code</dt>
+                <dd class="col-sm-9">{{ equipment.asset_code }}</dd>
+                <dt class="col-sm-3">Current Status</dt>
+                <dd class="col-sm-9">{{ equipment.status }}</dd>
+            </dl>
+
+            <form method="post" action="{{ url_for('dispose_equipment', item_id=equipment.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3">
+                    <label for="reason" class="form-label">Reason</label>
+                    <textarea id="reason" name="reason" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="disposal_date" class="form-label">Disposal Date</label>
+                    <input id="disposal_date" name="disposal_date" type="date" class="form-control" value="{{ current_date }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="reference_no" class="form-label">Reference Number <span class="text-muted">(optional)</span></label>
+                    <input id="reference_no" name="reference_no" type="text" class="form-control">
+                </div>
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Dispose this equipment permanently?')">Record Disposal</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

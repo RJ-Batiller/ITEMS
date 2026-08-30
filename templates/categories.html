@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block content %}
+<h2 class="fw-bold mb-4">Categories</h2>
+<div class="card shadow-sm mb-3"><div class="card-body"><form method="post" action="{{url_for('add_category')}}" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="col-md-4"><input class="form-control" name="name" placeholder="Category name" required></div><div class="col-md-6"><input class="form-control" name="description" placeholder="Description"></div><div class="col-md-2"><button class="btn btn-primary w-100">Add</button></div></form></div></div>
+<div class="card shadow-sm"><div class="card-body"><table class="table"><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody>{% for c in categories %}<tr><td>{{c.name}}</td><td>{{c.description or '-'}}</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

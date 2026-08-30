@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+
+    <div>
+
+        <h2>Equipment Details</h2>
+
+        <p class="text-muted mb-0">
+            Complete equipment information
+        </p>
+
+    </div>
+
+
+    <div>
+
+        <a
+            href="{{ url_for('equipment') }}"
+            class="btn btn-outline-secondary"
+        >
+            Back
+        </a>
+
+        {% if not is_worker %}
+            <a
+                href="{{ url_for(
+                    'edit_equipment',
+                    item_id=equipment.id
+                ) }}"
+                class="btn btn-warning"
+            >
+                Edit
+            </a>
+
+            <a
+                href="{{ url_for(
+                    'assign_equipment',
+                    item_id=equipment.id
+                ) }}"
+                class="btn btn-success"
+            >
+                Assign
+            </a>
+
+            {% if equipment.status not in ['Disposed'] %}
+                <a
+                    href="{{ url_for(
+                        'dispose_equipment',
+                        item_id=equipment.id
+                    ) }}"
+                    class="btn btn-danger"
+                >
+                    Dispose
+                </a>
+            {% endif %}
+        {% endif %}
+
+    </div>
+
+</div>
+
+
+<div class="card shadow-sm">
+
+    <div class="card-body">
+
+        <div class="d-flex justify-content-between">
+
+            <h4 class="mb-4">
+                {{ equipment.name }}
+            </h4>
+
+            <span class="badge bg-primary align-self-start">
+                {{ equipment.status }}
+            </span>
+
+        </div>
+
+
+        <div class="row">
+
+
+            <div class="col-md-6 mb-3">
+
+                <strong>Asset Code</strong>
+
+                <div>
+                    {{ equipment.asset_code }}
+                </div>
+
+            </div>
+
+
+            <div class="col-md-6 mb-3">
+
+                <strong>Equipment Name</strong>
+
+                <div>
+                    {{ equipment.name }}
+                </div>
+
+            </div>
+
+
+            <div class="col-md-6 mb-3">
+
+                <strong>Serial Number</strong>
+
+                <div>
+                    {{ equipment.serial_number or '-' }}
+                </div>
+
+            </div>
+
+
+            <div class="col-md-6 mb-3">
+
+                <strong>Category</strong>
+
+                <div>
+                    {{ equipment.category_name or '-' }}
+                </div>
+
+            </div>
+
+
+            <div class="col-md-6 mb-3">
+
+                <strong>Office</strong>
+
+                <div>
+                    {{ equipment.office_name or '-' }}
+                </div>
+
+            </div>
+
+
+            <div class="col-md-6 mb-3">
+
+                <strong>Status</strong>
+
+                <div>
+                    {{ equipment.status }}
+                </div>
+
+            </div>
+
+
+            <div class="col-md-6 mb-3">
+
+                <strong>Acquisition Date</strong>
+
+                <div>
+                    {{ equipment.acquisition_date or '-' }}
+                </div>
+
+            </div>
+
+
+            <div class="col-md-6 mb-3">
+
+                <strong>Accountable Person</strong>
+
+                <div>
+                    {{ equipment.accountable_person or '-' }}
+                </div>
+
+            </div>
+
+
+            <div class="col-12 mb-3">
+
+                <strong>Description</strong>
+
+                <div>
+                    {{ equipment.description or '-' }}
+                </div>
+
+            </div>
+
+
+            <div class="col-12 mb-3">
+
+                <strong>Specifications</strong>
+
+                <div>
+                    {{ equipment.specifications or '-' }}
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     QR CODE
+========================================================= -->
+
+<div class="card shadow-sm mt-4">
+
+    <div class="card-body">
+
+        <h5>Equipment QR Code</h5>
+
+        <p class="text-muted">
+            Scan this QR code to open this equipment record.
+        </p>
+
+        <img
+            src="{{ url_for(
+                'equipment_qr',
+                item_id=equipment.id
+            ) }}"
+            alt="Equipment QR Code"
+            style="width:220px;height:220px;"
+        >
+
+        <div class="mt-3">
+
+            <a
+                href="{{ url_for(
+                    'equipment_qr',
+                    item_id=equipment.id
+                ) }}"
+                target="_blank"
+                class="btn btn-outline-dark"
+            >
+                Open QR Code
+            </a>
+
+            <a
+                href="{{ url_for(
+                    'equipment_transactions',
+                    item_id=equipment.id
+                ) }}"
+                class="btn btn-outline-primary"
+            >
+                Transaction History
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

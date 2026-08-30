@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Assign Equipment</h2>
+            <p class="text-muted mb-0">
+                Assign this equipment to an accountable person.
+            </p>
+        </div>
+
+        <a href="{{ url_for('equipment') }}" class="btn btn-secondary">
+            ← Back to Equipment
+        </a>
+    </div>
+
+
+    <!-- Equipment Information -->
+    <div class="card mb-4 border rounded-3 shadow-sm">
+
+        <div class="card-header bg-white border-bottom rounded-top-3">
+            <strong>Equipment Information</strong>
+        </div>
+
+        <div class="card-body">
+
+            <div class="row">
+
+                <div class="col-md-4 mb-3">
+                    <label class="text-muted">Equipment</label>
+                    <div class="fw-bold">
+                        {{ equipment.item_name or equipment.name or 'N/A' }}
+                    </div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="text-muted">Asset Code</label>
+                    <div class="fw-bold">
+                        {{ equipment.asset_code or 'N/A' }}
+                    </div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="text-muted">Serial Number</label>
+                    <div class="fw-bold">
+                        {{ equipment.serial_number or 'N/A' }}
+                    </div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="text-muted">Category</label>
+                    <div>
+                        {{ equipment.category_name or 'N/A' }}
+                    </div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="text-muted">Office</label>
+                    <div>
+                        {{ equipment.office_name or 'N/A' }}
+                    </div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="text-muted">Status</label>
+                    <div>
+                        {{ equipment.status or 'N/A' }}
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- Current Accountable Person -->
+    {% if accountable %}
+
+    <div class="alert alert-warning border border-warning rounded-3 mb-4 shadow-sm">
+
+        <h6 class="alert-heading">
+            Currently Assigned
+        </h6>
+
+        <div>
+            <strong>{{ accountable.person_name }}</strong>
+        </div>
+
+        {% if accountable.person_position %}
+        <div>
+            Position: {{ accountable.person_position }}
+        </div>
+        {% endif %}
+
+        {% if accountable.office_name %}
+        <div>
+            Office: {{ accountable.office_name }}
+        </div>
+        {% endif %}
+
+    </div>
+
+    {% endif %}
+
+
+    <!-- Assign Form -->
+    <div class="card border rounded-3 shadow-sm">
+
+        <div class="card-header bg-white border-bottom rounded-top-3">
+            <strong>Assign To</strong>
+        </div>
+
+        <div class="card-body">
+
+            <form method="POST"
+                action="{{ url_for('save_assignment', item_id=equipment.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Person -->
+                <div class="mb-3">
+
+                    <label for="person_name" class="form-label">
+                        Person
+                    </label>
+
+                    <input
+                        type="text"
+                        name="person_name"
+                        id="person_name"
+                        class="form-control border rounded-2"
+                        placeholder="Enter person's full name"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- Position -->
+                <div class="mb-3">
+
+                    <label for="person_position" class="form-label">
+                        Position
+                    </label>
+
+                    <input
+                        type="text"
+                        name="person_position"
+                        id="person_position"
+                        class="form-control border rounded-2"
+                        placeholder="Enter position"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- Office -->
+                <div class="mb-3">
+
+                    <label for="office_name" class="form-label">
+                        Office
+                    </label>
+
+                    <select
+                        name="office_id"
+                        id="office_id"
+                        class="form-control border rounded-2"
+                        required
+                    >
+                        <option value="">Select office</option>
+                        {% for office in offices %}
+                        <option value="{{ office.id }}"{% if accountable and accountable.office_id == office.id %} selected{% endif %}>
+                            {{ office.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                </div>
+
+
+                <!-- Assignment Date -->
+                <div class="mb-3">
+
+                    <label for="assigned_at" class="form-label">
+                        Assignment Date
+                    </label>
+
+                    <input
+                        type="date"
+                        name="assigned_at"
+                        id="assigned_at"
+                        class="form-control border rounded-2"
+                        value="{{ current_date }}"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- Buttons -->
+                <div class="d-flex gap-2">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                    >
+                        Assign Equipment
+                    </button>
+
+                    <a
+                        href="{{ url_for('equipment') }}"
+                        class="btn btn-secondary"
+                    >
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

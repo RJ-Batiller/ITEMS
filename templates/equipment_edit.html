@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+
+    <div>
+
+        <h2>Edit Equipment</h2>
+
+        <p class="text-muted mb-0">
+            Update equipment information
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="card shadow-sm">
+
+    <div class="card-body">
+
+        <form
+            method="post"
+            action="{{ url_for(
+                'update_equipment',
+                item_id=equipment.id
+            ) }}"
+        >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="row g-3">
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Asset Code
+                    </label>
+
+                    <input
+                        type="text"
+                        name="asset_code"
+                        class="form-control"
+                        value="{{ equipment.asset_code }}"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Equipment Name
+                    </label>
+
+                    <input
+                        type="text"
+                        name="name"
+                        class="form-control"
+                        value="{{ equipment.name }}"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Serial Number
+                    </label>
+
+                    <input
+                        type="text"
+                        name="serial_number"
+                        class="form-control"
+                        value="{{ equipment.serial_number or '' }}"
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Acquisition Date
+                    </label>
+
+                    <input
+                        type="date"
+                        name="acquisition_date"
+                        class="form-control"
+                        value="{{ equipment.acquisition_date or '' }}"
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Category
+                    </label>
+
+                    <select
+                        name="category_id"
+                        class="form-select"
+                    >
+
+                        <option value="">
+                            Select Category
+                        </option>
+
+                        {% for c in categories %}
+
+                        <option
+                            value="{{ c.id }}"
+                            {% if equipment.category_id == c.id %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ c.name }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Office
+                    </label>
+
+                    <select
+                        name="office_id"
+                        class="form-select"
+                    >
+
+                        <option value="">
+                            Select Office
+                        </option>
+
+                        {% for o in offices %}
+
+                        <option
+                            value="{{ o.id }}"
+                            {% if equipment.office_id == o.id %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ o.name }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Status
+                    </label>
+
+                    <select
+                        name="status"
+                        class="form-select"
+                    >
+
+                        <option
+                            value="Available"
+                            {% if equipment.status == 'Available' %}
+                                selected
+                            {% endif %}
+                        >
+                            Available
+                        </option>
+
+                        <option
+                            value="Assigned"
+                            {% if equipment.status == 'Assigned' %}
+                                selected
+                            {% endif %}
+                        >
+                            Assigned
+                        </option>
+
+                        <option
+                            value="Under Maintenance"
+                            {% if equipment.status == 'Under Maintenance' %}
+                                selected
+                            {% endif %}
+                        >
+                            Under Maintenance
+                        </option>
+
+                        <option
+                            value="Archived"
+                            {% if equipment.status == 'Archived' %}
+                                selected
+                            {% endif %}
+                        >
+                            Archived
+                        </option>
+
+                        <option
+                            value="Disposed"
+                            {% if equipment.status == 'Disposed' %}
+                                selected
+                            {% endif %}
+                        >
+                            Disposed
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="col-12">
+
+                    <label class="form-label">
+                        Description
+                    </label>
+
+                    <textarea
+                        name="description"
+                        class="form-control"
+                        rows="3"
+                    >{{ equipment.description or '' }}</textarea>
+
+                </div>
+
+
+                <div class="col-12">
+
+                    <label class="form-label">
+                        Specifications
+                    </label>
+
+                    <textarea
+                        name="specifications"
+                        class="form-control"
+                        rows="4"
+                    >{{ equipment.specifications or '' }}</textarea>
+
+                </div>
+
+
+                <div class="col-12">
+
+                    <hr>
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                    >
+                        Save Changes
+                    </button>
+
+                    <a
+                        href="{{ url_for(
+                            'equipment',
+                            item_id=equipment.id
+                        ) }}"
+                        class="btn btn-outline-secondary"
+                    >
+                        Cancel
+                    </a>
+
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}

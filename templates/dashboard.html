@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block content %}
+<h2 class="fw-bold mb-4">Dashboard</h2>
+<div class="row g-3">
+<div class="col-md-3"><div class="card card-stat shadow-sm"><div class="card-body"><div class="text-muted">Active Equipment</div><h2>{{ total }}</h2></div></div></div>
+<div class="col-md-3"><div class="card card-stat shadow-sm"><div class="card-body"><div class="text-muted">Available</div><h2>{{ available }}</h2></div></div></div>
+<div class="col-md-3"><div class="card card-stat shadow-sm"><div class="card-body"><div class="text-muted">Assigned</div><h2>{{ assigned }}</h2></div></div></div>
+<div class="col-md-3"><div class="card card-stat shadow-sm"><div class="card-body"><div class="text-muted">Disposed</div><h2>{{ disposed }}</h2></div></div></div>
+</div>
+<div class="card table-card shadow-sm mt-4"><div class="card-body">
+<h5>ITEMS</h5><p class="text-muted mb-0">Web-based inventory tracking and equipment management for Mabalacat City College.</p>
+</div></div>
+{% endblock %}
