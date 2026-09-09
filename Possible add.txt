@@ -1,0 +1,267 @@
+1. Finish the core inventory lifecycle
+Priority: Highest
+
+Build the real operational flow around equipment:
+
+Add equipment with validation
+Edit equipment details
+Delete / archive / dispose flow
+Status transitions
+Accountability assignment
+Transfer history
+Why first:
+
+This is the actual purpose of the system
+It creates the most visible value for users
+It connects the dashboard, equipment list, and transactions together
+Minimum deliverables:
+
+Equipment CRUD
+Status changes with rules
+Archive/dispose logic
+Accountability assignment form
+Transaction log for each action
+2. Implement accountability and assignment tracking
+Priority: Very high
+
+This is a key difference between a simple asset list and a real college inventory system.
+
+Build:
+
+assign equipment to office/person
+transfer equipment between offices
+record who is accountable
+show current holder on equipment screens
+store assignment history
+Why this matters:
+
+School inventory systems live or die on accountability
+It makes the system auditable and realistic
+It supports both operational use and defense presentation
+Minimum deliverables:
+
+accountability table and logic
+transfer/assignment form
+current holder display
+assignment history page
+3. Build a proper transactions system
+Priority: Very high
+
+Right now the concept exists, but it should become a real operational record system.
+
+Build:
+
+transaction types:
+assignment
+transfer
+maintenance
+repair
+disposal
+archive
+transaction date/time
+performed by user
+remarks notes
+actor and target details
+Why this matters:
+
+Every inventory action should be traceable
+This supports accountability and auditing
+It is one of the strongest “professional system” features
+Minimum deliverables:
+
+transaction table and record creation
+transactions page with filters
+ability to view equipment transaction history
+4. Improve the dashboard into an operations console
+Priority: High
+
+The current dashboard is too minimal to feel complete.
+
+Build:
+
+total equipment
+available / assigned / maintenance / archived / disposed
+recent activity
+low stock / missing return alerts
+recent transactions
+quick actions
+Why this matters:
+
+A good dashboard is the first thing managers use
+It gives the system authority and usefulness
+It makes the system look like it was designed for decisions, not just records
+Minimum deliverables:
+
+cards with status counts
+recent activity section
+quick links to common actions
+summary view for equipment health
+5. Add QR code generation and full scanner workflow
+Priority: High
+
+This is a strong feature for a capstone and a usable inventory system.
+
+Build:
+
+generate QR code per equipment
+save QR image or link
+scanner page
+scan item and retrieve item details
+quick status view from QR scan
+Why this matters:
+
+It is a standout feature in the project
+It makes the system more practical in the field
+It improves user experience and demo value
+Minimum deliverables:
+
+QR generation page or action
+QR scanner interface
+lookup by QR code
+scan-to-view or scan-to-update flow
+6. Secure the permission model properly
+Priority: High
+
+Right now the app has some general restrictions, but you need a more formal permission model.
+
+Build:
+
+super admin
+admin
+staff/worker roles
+route protections
+action restrictions
+read-only worker view
+Why this matters:
+
+This is required for real systems
+It reduces accidental misuse
+It makes your app credible for institutional use
+Minimum deliverables:
+
+permission helper functions
+enforced rules on all data-altering routes
+role-specific UI differences
+one permission matrix for documentation
+7. Add audit and history reporting
+Priority: Medium-high
+
+This is where the system becomes trustworthy.
+
+Build:
+
+logs of who created/edited equipment
+who assigned or disposed item
+timestamped history
+filter by date/user/equipment
+export to CSV or printable report
+Why this matters:
+
+inventory systems are judged by traceability
+this is important for school compliance and internal control
+Minimum deliverables:
+
+audit log model
+viewable logs
+simple report page
+8. Upgrade the interface from “basic app” to “institutional system”
+Priority: Medium-high
+
+The visual language should match the seriousness of the project.
+
+Build:
+
+consistent cards, tables, and typography
+clear status chips
+better spacing and hierarchy
+better empty states
+search/filter UI
+table actions with obvious affordances
+print-friendly reports
+Why this matters:
+
+People judge the system by how it feels to use
+The login page already shows the branding direction
+The rest of the app should follow the same style
+Minimum deliverables:
+
+unified style system
+consistent status badges
+improved table and card design
+modern form styling
+9. Add stronger validation, error handling, and feedback
+Priority: Medium
+
+This is necessary before the app feels solid.
+
+Build:
+
+required-field validation
+friendly error messaging
+duplicate detection
+form confirmation dialogs
+success/error flash states
+empty state messaging
+Why this matters:
+
+reduces confusion
+improves reliability
+helps real users operate with confidence
+10. Add real testing for business logic
+Priority: Medium
+
+Current tests are too basic.
+
+Build:
+
+login success/failure
+unauthorized access checks
+equipment add and validation
+assignment workflow tests
+status rules
+transaction creation
+user role restrictions
+Why this matters:
+
+prevents regressions
+makes the capstone more defensible
+shows engineering quality
+Recommended order for your next sprint
+If you want the most effective sequence, do it like this:
+
+Equipment lifecycle + validation
+Accountability / assignment flow
+Transactions
+Dashboard improvements
+QR workflow
+Permission enforcement
+Audit log
+UI polish
+Testing expansion
+Reporting/export
+Best next milestone for your defense/demo
+If your goal is a strong demo, the ideal milestone is:
+
+full equipment CRUD
+assignment transfer
+transaction history
+dashboard summary
+QR scan lookup
+That combination makes the system look complete and operational.
+
+My recommendation
+Build in this exact order:
+
+Phase 1: inventory management core
+Phase 2: accountability and transactions
+Phase 3: dashboard and QR
+Phase 4: permission + audit
+Phase 5: UI/UX polish
+Phase 6: reporting and testing hardening
+If you want, I can turn this into a concrete 6-week development plan with:
+
+features per week
+exact pages to build
+database tables to add
+UI tasks
+testing tasks

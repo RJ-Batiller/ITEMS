@@ -11,14 +11,21 @@
 <div class="app-layout">
 <aside class="sidebar">
 <div class="sidebar-label">I.T.E.M.S.</div>
-<div class="sidebar-user">{{ session.get('full_name','') }}<br>{{ session.get('role','') }}</div>
-<a href="{{ url_for('dashboard') }}">Dashboard</a>
-<a href="{{ url_for('equipment') }}">Equipment</a>
-<a href="{{ url_for('qr_scanner') }}">QR Scanner</a>
-<a href="{{ url_for('categories') }}">Categories</a>
-<a href="{{ url_for('transactions') }}">Transactions</a>
-{% if session.get('role') == 'Super Admin' %}<a href="{{ url_for('users') }}">Users</a>{% endif %}
-<a href="{{ url_for('logout') }}">Logout</a>
+<div class="sidebar-user">
+{% if g.current_user.profile_picture %}<img class="sidebar-user-avatar sidebar-user-photo" src="{{ url_for('static', filename='uploads/profiles/' ~ g.current_user.profile_picture, v=g.current_user.profile_picture) }}" alt="Profile picture">{% else %}<div class="sidebar-user-avatar">{{ session.get('full_name', 'U')[:1]|upper }}</div>{% endif %}
+<div class="sidebar-user-info">
+<strong>{{ session.get('full_name','') }}</strong>
+<span class="sidebar-user-role">{{ session.get('role','') }}</span>
+</div>
+</div>
+<a class="{{ 'is-active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Dashboard</a>
+<a class="{{ 'is-active' if request.endpoint in ['equipment', 'equipment_view', 'equipment_add', 'equipment_edit', 'equipment_assign', 'equipment_maintenance', 'equipment_dispose', 'equipment_archive', 'equipment_transactions'] else '' }}" href="{{ url_for('equipment') }}">Equipment</a>
+<a class="{{ 'is-active' if request.endpoint == 'qr_scanner' else '' }}" href="{{ url_for('qr_scanner') }}">QR Scanner</a>
+<a class="{{ 'is-active' if request.endpoint == 'categories' else '' }}" href="{{ url_for('categories') }}">Categories</a>
+<a class="{{ 'is-active' if request.endpoint == 'transactions' else '' }}" href="{{ url_for('transactions') }}">Transactions</a>
+{% if session.get('role') in ['Super Admin', 'Admin'] %}<a class="{{ 'is-active' if request.endpoint == 'users' else '' }}" href="{{ url_for('users') }}">Users</a>{% endif %}
+<a class="{{ 'is-active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">My Profile</a>
+<a class="sidebar-logout" href="{{ url_for('logout') }}">Logout</a>
 </aside>
 <main class="content-area">
 {% with messages=get_flashed_messages(with_categories=true) %}

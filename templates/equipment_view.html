@@ -25,6 +25,22 @@
         </a>
 
         {% if not is_worker %}
+            {% if equipment.status == 'Archived' %}
+            <form method="post" action="{{ url_for('restore_equipment', item_id=equipment.id) }}" class="d-inline" onsubmit="return confirm('Restore this archived equipment and mark it available?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-success">Restore</button>
+            </form>
+            {% elif equipment.status not in ['Disposed'] %}
+            <a
+                href="{{ url_for(
+                    'equipment_maintenance',
+                    item_id=equipment.id
+                ) }}"
+                class="btn btn-outline-warning"
+            >
+                {{ 'Complete Maintenance' if equipment.status == 'Under Maintenance' else 'Start Maintenance' }}
+            </a>
+            {% endif %}
             <a
                 href="{{ url_for(
                     'edit_equipment',
@@ -35,17 +51,28 @@
                 Edit
             </a>
 
-            <a
-                href="{{ url_for(
-                    'assign_equipment',
-                    item_id=equipment.id
-                ) }}"
-                class="btn btn-success"
-            >
-                Assign
-            </a>
+            {% if equipment.status not in ['Under Maintenance', 'Archived', 'Disposed'] %}
+                <a
+                    href="{{ url_for(
+                        'assign_equipment',
+                        item_id=equipment.id
+                    ) }}"
+                    class="btn btn-success"
+                >
+                    Assign
+                </a>
+            {% endif %}
 
-            {% if equipment.status not in ['Disposed'] %}
+            {% if equipment.status not in ['Archived', 'Disposed', 'Under Maintenance'] %}
+                <form
+                    method="post"
+                    action="{{ url_for('archive_equipment', item_id=equipment.id) }}"
+                    class="d-inline"
+                    onsubmit="return confirm('Archive this equipment?')"
+                >
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-secondary">Archive</button>
+                </form>
                 <a
                     href="{{ url_for(
                         'dispose_equipment',
@@ -73,7 +100,7 @@
                 {{ equipment.name }}
             </h4>
 
-            <span class="badge bg-primary align-self-start">
+            <span class="status-badge status-{{ equipment.status | lower | replace(' ', '-') }} align-self-start">
                 {{ equipment.status }}
             </span>
 
@@ -196,6 +223,57 @@
 
     </div>
 
+</div>
+
+{% if not is_worker %}
+<div class="card shadow-sm mt-4">
+    <div class="card-body d-flex justify-content-between align-items-center gap-3 maintenance-summary">
+        <div>
+            <p class="catalog-kicker mb-1">Equipment care</p>
+            {% if maintenance_record %}
+            <h5 class="mb-1">Maintenance in progress</h5>
+            <p class="text-muted mb-0">Started {{ maintenance_record.started_at }}. {{ maintenance_record.remarks }}</p>
+            {% else %}
+            <h5 class="mb-1">Maintenance history</h5>
+            <p class="text-muted mb-0">Record a repair or service event for this equipment.</p>
+            {% endif %}
+        </div>
+        <a href="{{ url_for('equipment_maintenance', item_id=equipment.id) }}" class="btn btn-outline-warning">{{ 'Complete maintenance' if maintenance_record else 'Manage maintenance' }}</a>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm mt-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <p class="catalog-kicker mb-1">Service records</p>
+                <h5 class="mb-0">Maintenance history</h5>
+            </div>
+            <span class="small text-muted">{{ maintenance_history | length }} record{% if maintenance_history | length != 1 %}s{% endif %}</span>
+        </div>
+        <div class="maintenance-history-list">
+        {% for record in maintenance_history %}
+            <div class="maintenance-history-row">
+                <div>
+                    <span class="status-badge {% if record.status == 'Open' %}status-under-maintenance{% else %}status-available{% endif %}">{{ record.status }}</span>
+                    <strong class="d-block mt-2">Started {{ record.started_at }}</strong>
+                    <p class="text-muted small mb-0">{{ record.remarks }}</p>
+                </div>
+                <div class="maintenance-history-meta">
+                    <span>Started by {{ record.started_by_name }}</span>
+                    {% if record.status == 'Completed' %}
+                    <span>Completed {{ record.completed_at }}</span>
+                    <span>By {{ record.completed_by_name or '-' }}</span>
+                    <span>{{ record.completion_remarks or '-' }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <div class="dashboard-empty">No maintenance records for this equipment.</div>
+        {% endfor %}
+        </div>
+    </div>
 </div>
 
 

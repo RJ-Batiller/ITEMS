@@ -2,28 +2,71 @@
 
 {% block content %}
 
-<h2 class="fw-bold mb-4">Transaction History</h2>
+<div class="d-flex justify-content-between align-items-end mb-4 transaction-heading">
+    <div>
+        <p class="catalog-kicker mb-1">Audit trail</p>
+        <h2 class="fw-bold mb-1">Transaction History</h2>
+        <p class="text-muted mb-0">Review and export every recorded inventory action.</p>
+    </div>
+    <a
+        href="{{ url_for('transactions', q=q, action=action, date_from=date_from, date_to=date_to, export='csv') }}"
+        class="btn btn-outline-dark"
+    >
+        Export CSV
+    </a>
+</div>
 
 <form
-    class="input-group mb-3"
+    class="card shadow-sm mb-4 transaction-filters"
     method="get"
     action="{{ url_for('transactions') }}"
 >
-    <input
-        class="form-control"
-        name="q"
-        value="{{ q }}"
-        placeholder="Search date, asset code, equipment, action, or user"
-        aria-label="Search transactions"
-    >
-    <button type="submit" class="btn btn-outline-primary">
-        Search
-    </button>
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-lg-5">
+                <label class="form-label small text-muted" for="transaction-search">Search records</label>
+                <input
+                    id="transaction-search"
+                    class="form-control"
+                    name="q"
+                    value="{{ q }}"
+                    placeholder="Asset code, equipment, or user"
+                >
+            </div>
+            <div class="col-sm-4 col-lg-2">
+                <label class="form-label small text-muted" for="transaction-action">Action</label>
+                <select id="transaction-action" class="form-select" name="action">
+                    <option value="">All actions</option>
+                    {% for option in transaction_actions %}
+                    <option value="{{ option }}" {% if action == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-4 col-lg-2">
+                <label class="form-label small text-muted" for="transaction-start">From</label>
+                <input id="transaction-start" class="form-control" type="date" name="date_from" value="{{ date_from }}">
+            </div>
+            <div class="col-sm-4 col-lg-2">
+                <label class="form-label small text-muted" for="transaction-end">To</label>
+                <input id="transaction-end" class="form-control" type="date" name="date_to" value="{{ date_to }}">
+            </div>
+            <div class="col-lg-1 d-grid">
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+        </div>
+    </div>
 </form>
 
 <div class="card shadow-sm">
 
     <div class="card-body table-responsive">
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-muted">{{ transactions | length }} record{% if transactions | length != 1 %}s{% endif %} shown</span>
+            {% if q or action or date_from or date_to %}
+            <a class="small text-decoration-none" href="{{ url_for('transactions') }}">Clear filters</a>
+            {% endif %}
+        </div>
 
         <table class="table align-middle">
 
@@ -63,7 +106,7 @@
 
                     <td>
 
-                        <span class="badge bg-primary">
+                        <span class="badge transaction-badge transaction-{{ t.action | lower | replace(' ', '-') }}">
                             {{ t.action }}
                         </span>
 

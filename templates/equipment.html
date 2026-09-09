@@ -15,6 +15,59 @@
 
 </div>
 
+<div class="equipment-catalog">
+
+    <aside class="equipment-sidebar" aria-label="Equipment categories">
+        <div class="equipment-sidebar-heading">Catalog</div>
+        <a
+            href="{{ url_for('equipment', q=q) }}"
+    class="equipment-category-link {% if not selected_category_name %}is-active{% endif %}"
+        >
+            <span>All Equipment</span>
+            <span class="equipment-category-count">{{ categories | sum(attribute='equipment_count') }}</span>
+        </a>
+
+        <div class="equipment-sidebar-heading mt-4">Categories</div>
+        {% for c in categories %}
+        <a
+            href="{{ url_for('equipment', category=c.id, q=q) }}"
+            class="equipment-category-link {% if selected_category_id == c.id %}is-active{% endif %}"
+        >
+            <span>{{ c.name }}</span>
+            <span class="equipment-category-count">{{ c.equipment_count }}</span>
+        </a>
+        {% else %}
+        <p class="small text-muted px-2">No categories yet.</p>
+        {% endfor %}
+
+        {% if session.get('role', '').lower() != 'worker' %}
+        <div class="equipment-sidebar-heading mt-4">Queues</div>
+        <a
+            href="{{ url_for('equipment', status='Under Maintenance', q=q) }}"
+            class="equipment-category-link {% if selected_status == 'Under Maintenance' %}is-active{% endif %}"
+        >
+            <span>Maintenance</span>
+            <span class="equipment-category-count">{{ status_counts.get('Under Maintenance', 0) }}</span>
+        </a>
+        <a
+            href="{{ url_for('equipment', status='Archived', q=q) }}"
+            class="equipment-category-link {% if selected_status == 'Archived' %}is-active{% endif %}"
+        >
+            <span>Archive</span>
+            <span class="equipment-category-count">{{ status_counts.get('Archived', 0) }}</span>
+        </a>
+        <a
+            href="{{ url_for('equipment', status='Disposed', q=q) }}"
+            class="equipment-category-link {% if selected_status == 'Disposed' %}is-active{% endif %}"
+        >
+            <span>Disposed</span>
+            <span class="equipment-category-count">{{ status_counts.get('Disposed', 0) }}</span>
+        </a>
+        {% endif %}
+    </aside>
+
+    <section class="equipment-catalog-content">
+
 
 <!-- =========================================================
      ADD EQUIPMENT
@@ -136,6 +189,20 @@
      SEARCH
 ========================================================= -->
 
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+        <p class="catalog-kicker mb-1">Inventory catalog</p>
+        <h3 class="catalog-title mb-0">
+            {% if selected_category_name %}
+                {{ selected_category_name }}
+            {% else %}
+                All Equipment
+            {% endif %}
+        </h3>
+    </div>
+    <span class="text-muted small">{{ equipment | length }} item{% if equipment | length != 1 %}s{% endif %}</span>
+</div>
+
 <form
     class="input-group mb-3"
     method="get"
@@ -146,8 +213,12 @@
         class="form-control"
         name="q"
         value="{{ q }}"
-                    placeholder="Search asset code, equipment, category, office, status, accountable"
+        placeholder="Search this catalog"
     >
+
+    {% if selected_category_id %}
+    <input type="hidden" name="category" value="{{ selected_category_id }}">
+    {% endif %}
 
     <button
         type="submit"
@@ -158,6 +229,42 @@
 
 </form>
 
+<form class="card shadow-sm mb-3 catalog-filters" method="get" action="{{ url_for('equipment') }}">
+    <div class="card-body py-3">
+        <div class="row g-2 align-items-end">
+            <input type="hidden" name="q" value="{{ q }}">
+            {% if selected_category_id %}<input type="hidden" name="category" value="{{ selected_category_id }}">{% endif %}
+            <div class="col-sm-4">
+                <label class="form-label small text-muted" for="equipment-office">Office</label>
+                <select id="equipment-office" class="form-select" name="office">
+                    <option value="">All offices</option>
+                    {% for o in offices %}
+                    <option value="{{ o.id }}" {% if selected_office_id == o.id %}selected{% endif %}>{{ o.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-4">
+                <label class="form-label small text-muted" for="equipment-status">Status</label>
+                <select id="equipment-status" class="form-select" name="status">
+                    <option value="">All statuses</option>
+                    {% for option in ['Available', 'Assigned', 'Under Maintenance', 'Archived', 'Disposed'] %}
+                    <option value="{{ option }}" {% if selected_status == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-4 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary flex-grow-1">Apply filters</button>
+                {% if selected_office_id or selected_status %}<a href="{{ url_for('equipment', category=selected_category_id, q=q) }}" class="btn btn-outline-secondary">Clear</a>{% endif %}
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('equipment', q=q, category=selected_category_id, office=selected_office_id, status=selected_status, export='csv') }}" class="btn btn-outline-dark btn-sm">Export inventory CSV</a>
+    <a href="{{ url_for('equipment', q=q, category=selected_category_id, office=selected_office_id, status=selected_status, print='1') }}" class="btn btn-outline-secondary btn-sm ms-2" target="_blank" rel="noopener">Print inventory</a>
+</div>
+
 
 <!-- =========================================================
      EQUIPMENT TABLE
@@ -165,7 +272,7 @@
 
 <div class="card table-card shadow-sm">
 
-    <div class="card-body table-responsive">
+                <div class="card-body table-responsive">
 
         <table class="table align-middle">
 
@@ -215,7 +322,7 @@
                     </td>
 
                     <td>
-                        {{ e.status }}
+                        <span class="status-badge status-{{ e.status | lower | replace(' ', '-') }}">{{ e.status }}</span>
                     </td>
 
                     <td>
@@ -265,6 +372,7 @@
                             <!-- ASSIGN
                                  HIDDEN FOR WORKER -->
 
+                            {% if e.status not in ['Under Maintenance', 'Archived', 'Disposed'] %}
                             <a
                                 href="{{ url_for(
                                     'assign_equipment',
@@ -273,6 +381,17 @@
                                 class="btn btn-sm btn-outline-success"
                             >
                                 Assign
+                            </a>
+                            {% endif %}
+
+                            <a
+                                href="{{ url_for(
+                                    'equipment_maintenance',
+                                    item_id=e.id
+                                ) }}"
+                                class="btn btn-sm btn-outline-warning"
+                            >
+                                {{ 'Complete Maintenance' if e.status == 'Under Maintenance' else 'Start Maintenance' }}
                             </a>
 
                             {% endif %}
@@ -299,7 +418,17 @@
 
                             {% if session.get('role', '').lower() != 'worker' %}
 
-                                {% if e.status not in ['Archived', 'Disposed'] %}
+                                {% if e.status == 'Archived' %}
+                                <form
+                                    method="post"
+                                    action="{{ url_for('restore_equipment', item_id=e.id) }}"
+                                    style="display:inline;"
+                                    onsubmit="return confirm('Restore this archived equipment and mark it available?');"
+                                >
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-success">Restore</button>
+                                </form>
+                                {% elif e.status not in ['Disposed', 'Under Maintenance'] %}
 
                                 <form
                                     method="post"
@@ -367,6 +496,9 @@
 
     </div>
 
+</div>
+
+    </section>
 </div>
 
 {% endblock %}

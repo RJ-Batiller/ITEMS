@@ -2,6 +2,11 @@ CREATE DATABASE IF NOT EXISTS items_db
 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE items_db;
 
+CREATE TABLE schema_migrations (
+    version VARCHAR(120) PRIMARY KEY,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE roles (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
@@ -83,6 +88,22 @@ CREATE TABLE transactions (
     INDEX idx_transactions_user_created (user_id, created_at),
     FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE maintenance_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    equipment_id INT NOT NULL,
+    started_by INT NOT NULL,
+    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    remarks TEXT NOT NULL,
+    status ENUM('Open','Completed') NOT NULL DEFAULT 'Open',
+    completed_by INT,
+    completed_at DATETIME NULL,
+    completion_remarks TEXT,
+    INDEX idx_maintenance_equipment_status (equipment_id, status),
+    FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE,
+    FOREIGN KEY (started_by) REFERENCES users(id),
+    FOREIGN KEY (completed_by) REFERENCES users(id)
 );
 
 CREATE TABLE archives (

@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash
 load_dotenv(dotenv_path=".env")
 
 username = os.getenv("SUPERADMIN_USERNAME", "superadmin1")
-password = os.getenv("SUPERADMIN_PASSWORD")
+password = os.getenv("SUPERADMIN_PASSWORD", "admin123")
 full_name = os.getenv("SUPERADMIN_FULL_NAME", "System Super Admin")
 email = os.getenv("SUPERADMIN_EMAIL", "admin@mcc.edu.ph")
 

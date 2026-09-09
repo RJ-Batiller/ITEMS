@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 maintenance-heading">
+    <div>
+        <p class="catalog-kicker mb-1">Equipment care</p>
+        <h2 class="mb-1">Maintenance</h2>
+        <p class="text-muted mb-0">Record service work and keep the equipment status accurate.</p>
+    </div>
+    <a href="{{ url_for('view_equipment', item_id=equipment.id) }}" class="btn btn-outline-secondary">Back to equipment</a>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+                <p class="text-muted small mb-1">{{ equipment.asset_code }}</p>
+                <h4 class="mb-1">{{ equipment.name }}</h4>
+                <span class="status-badge status-{{ equipment.status | lower | replace(' ', '-') }}">{{ equipment.status }}</span>
+            </div>
+            {% if maintenance_record %}
+            <span class="badge text-bg-warning">Maintenance open</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if maintenance_record %}
+<div class="card shadow-sm">
+    <div class="card-body">
+        <p class="catalog-kicker mb-1">Complete service record</p>
+        <h5 class="mb-3">Close maintenance</h5>
+        <p class="text-muted small">Started {{ maintenance_record.started_at }}. Original remarks: {{ maintenance_record.remarks }}</p>
+        <form method="post" action="{{ url_for('equipment_maintenance', item_id=equipment.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="maintenance_action" value="complete">
+            <label class="form-label" for="completion-remarks">Completion / repair remarks</label>
+            <textarea id="completion-remarks" name="remarks" class="form-control mb-3" rows="4" required placeholder="Describe the repair performed and final condition"></textarea>
+            <button type="submit" class="btn btn-success" onclick="return confirm('Complete this maintenance record and mark the equipment available?')">Complete Maintenance</button>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body">
+        <p class="catalog-kicker mb-1">Start service record</p>
+        <h5 class="mb-3">Send to maintenance</h5>
+        <p class="text-muted small">The equipment will be marked Under Maintenance and cannot be assigned until the record is completed.</p>
+        <form method="post" action="{{ url_for('equipment_maintenance', item_id=equipment.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="maintenance_action" value="start">
+            <label class="form-label" for="maintenance-remarks">Maintenance / repair remarks</label>
+            <textarea id="maintenance-remarks" name="remarks" class="form-control mb-3" rows="4" required placeholder="Describe the issue or service required"></textarea>
+            <button type="submit" class="btn btn-warning" onclick="return confirm('Start a maintenance record for this equipment?')">Start Maintenance</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

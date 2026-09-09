@@ -1,5 +1,6 @@
 import os
 import hmac
+import csv
 import secrets
 from functools import wraps
 from datetime import date
@@ -14,17 +15,19 @@ from flask import (
     flash,
     jsonify,
     send_file,
+    make_response,
     g
 )
 
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 import mysql.connector
 from mysql.connector.errors import IntegrityError
 from dotenv import load_dotenv
 
 import qrcode
-from io import BytesIO
+from io import BytesIO, StringIO
 
 
 # ============================================================
@@ -72,6 +75,30 @@ app.config.update(
     MAX_CONTENT_LENGTH=4 * 1024 * 1024
 )
 
+PROFILE_UPLOAD_DIR = os.path.join(app.root_path, "static", "uploads", "profiles")
+PROFILE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
+
+
+MAINTENANCE_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS maintenance_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    equipment_id INT NOT NULL,
+    started_by INT NOT NULL,
+    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    remarks TEXT NOT NULL,
+    status ENUM('Open','Completed') NOT NULL DEFAULT 'Open',
+    completed_by INT,
+    completed_at DATETIME NULL,
+    completion_remarks TEXT,
+    INDEX idx_maintenance_equipment_status (equipment_id, status),
+    FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE,
+    FOREIGN KEY (started_by) REFERENCES users(id),
+    FOREIGN KEY (completed_by) REFERENCES users(id)
+)
+"""
+
+_maintenance_schema_ready = False
+
 
 @app.context_processor
 def inject_security_helpers():
@@ -108,13 +135,26 @@ def add_security_headers(response):
 # ============================================================
 
 def db():
-    return mysql.connector.connect(
+    global _maintenance_schema_ready
+
+    conn = mysql.connector.connect(
         host=os.getenv("DB_HOST", "127.0.0.1"),
         port=int(os.getenv("DB_PORT", "3306")),
         user=os.getenv("DB_USER", "root"),
         password=os.getenv("DB_PASSWORD", ""),
         database=os.getenv("DB_NAME", "items_db")
     )
+
+    if not _maintenance_schema_ready:
+        cur = conn.cursor()
+        try:
+            cur.execute(MAINTENANCE_SCHEMA_SQL)
+            conn.commit()
+            _maintenance_schema_ready = True
+        finally:
+            cur.close()
+
+    return conn
 
 VALID_EQUIPMENT_STATUSES = {
     "Available",
@@ -124,12 +164,38 @@ VALID_EQUIPMENT_STATUSES = {
     "Disposed"
 }
 
+TRANSACTION_ACTIONS = (
+    "Created",
+    "Updated",
+    "Assigned",
+    "Unassigned",
+    "Maintenance",
+    "Repair",
+    "Archived",
+    "Restored",
+    "Disposed",
+)
+
+MANAGEMENT_ROLES = {"super admin", "admin"}
+EQUIPMENT_WRITE_ACTIONS = {
+    "add",
+    "edit",
+    "archive",
+    "restore",
+    "dispose",
+    "assign",
+    "unassign",
+    "maintenance",
+}
+
 
 def validate_status_change(old_status, new_status):
     if new_status not in VALID_EQUIPMENT_STATUSES:
         return False
     if old_status in {"Archived", "Disposed"}:
         return new_status == old_status
+    if old_status == "Under Maintenance" or new_status == "Under Maintenance":
+        return old_status == new_status
     if new_status == "Assigned":
         return old_status == "Assigned"
     return True
@@ -160,6 +226,32 @@ def parse_optional_date(value, field_name):
     except ValueError as error:
         raise ValueError(f"Please provide a valid {field_name}.") from error
     return value
+
+
+def csv_safe(value):
+    """Prevent spreadsheet formulas from executing when a CSV is opened."""
+    value = "" if value is None else str(value)
+    if value.startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
+
+
+def can_perform_action(role_name, action):
+    """Return whether a role may perform a named application action."""
+    role = (role_name or "").strip().lower()
+    if action == "manage_users":
+        return role in MANAGEMENT_ROLES
+    if action in EQUIPMENT_WRITE_ACTIONS:
+        return role in MANAGEMENT_ROLES
+    return action in {"view", "view_transactions", "view_qr"} and bool(role)
+
+
+def can_start_maintenance(status):
+    return status not in {"Assigned", "Archived", "Disposed"}
+
+
+def can_complete_maintenance(has_open_record):
+    return bool(has_open_record)
 
 
 # ============================================================
@@ -200,7 +292,7 @@ def get_current_user():
     conn = db()
     cur = conn.cursor(dictionary=True)
     cur.execute("""
-        SELECT u.id, u.full_name, u.is_active, r.name AS role_name
+        SELECT u.id, u.username, u.full_name, u.email, u.profile_picture, u.is_active, r.name AS role_name
         FROM users u
         JOIN roles r ON r.id = u.role_id
         WHERE u.id = %s AND u.is_active = 1
@@ -223,6 +315,39 @@ def super_admin_required(fn):
     return wrapper
 
 
+def user_management_required(fn):
+    """Allow only Super Admin and Admin accounts to manage users."""
+    @wraps(fn)
+    @login_required
+    def wrapper(*args, **kwargs):
+        if not can_perform_action(g.current_user["role_name"], "manage_users"):
+            flash("Admin access required.", "danger")
+            return redirect(url_for("dashboard"))
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+def creatable_roles(role_name):
+    """Return role names that an account may assign to a new user."""
+    role = role_name.strip().lower()
+    if role == "super admin":
+        return ("Admin", "Worker")
+    if role == "admin":
+        return ("Worker",)
+    return ()
+
+
+def manageable_roles(role_name):
+    """Return account roles this manager may edit, excluding their own role."""
+    role = (role_name or "").strip().lower()
+    if role == "super admin":
+        return ("Admin", "Worker")
+    if role == "admin":
+        return ("Worker",)
+    return ()
+
+
 # ============================================================
 # ADMIN / MANAGEMENT REQUIRED
 # Worker accounts cannot modify equipment/categories
@@ -239,7 +364,7 @@ def admin_required(fn):
             return redirect(url_for("login"))
 
         g.current_user = user
-        if user["role_name"].strip().lower() == "worker":
+        if not can_perform_action(user["role_name"], "edit"):
 
             flash(
                 "Worker accounts have view-only access.",
@@ -348,46 +473,57 @@ def dashboard():
     cur = conn.cursor(dictionary=True)
 
     cur.execute("""
-        SELECT COUNT(*) AS n
+        SELECT status, COUNT(*) AS status_count
         FROM equipment
-        WHERE status NOT IN ('Archived', 'Disposed')
+        GROUP BY status
     """)
-    total = cur.fetchone()["n"]
+    status_counts = {
+        row["status"]: row["status_count"]
+        for row in cur.fetchall()
+    }
+
+    total = sum(
+        count for status, count in status_counts.items()
+        if status not in {"Archived", "Disposed"}
+    )
+    available = status_counts.get("Available", 0)
+    assigned = status_counts.get("Assigned", 0)
+    maintenance = status_counts.get("Under Maintenance", 0)
+    archived = status_counts.get("Archived", 0)
+    disposed = status_counts.get("Disposed", 0)
 
     cur.execute("""
-        SELECT COUNT(*) AS n
-        FROM equipment
-        WHERE status = 'Available'
+        SELECT
+            t.created_at,
+            t.action,
+            t.details,
+            e.id AS equipment_id,
+            e.asset_code,
+            e.name AS equipment_name,
+            u.full_name
+        FROM transactions t
+        JOIN equipment e ON e.id = t.equipment_id
+        JOIN users u ON u.id = t.user_id
+        ORDER BY t.created_at DESC
+        LIMIT 8
     """)
-    available = cur.fetchone()["n"]
+    recent_transactions = cur.fetchall()
 
     cur.execute("""
-        SELECT COUNT(*) AS n
-        FROM equipment
-        WHERE status = 'Assigned'
+        SELECT
+            m.id,
+            m.started_at,
+            m.remarks,
+            e.id AS equipment_id,
+            e.asset_code,
+            e.name AS equipment_name
+        FROM maintenance_records m
+        JOIN equipment e ON e.id = m.equipment_id
+        WHERE m.status = 'Open'
+        ORDER BY m.started_at DESC
+        LIMIT 5
     """)
-    assigned = cur.fetchone()["n"]
-
-    cur.execute("""
-        SELECT COUNT(*) AS n
-        FROM equipment
-        WHERE status = 'Under Maintenance'
-    """)
-    maintenance = cur.fetchone()["n"]
-
-    cur.execute("""
-        SELECT COUNT(*) AS n
-        FROM equipment
-        WHERE status = 'Archived'
-    """)
-    archived = cur.fetchone()["n"]
-
-    cur.execute("""
-        SELECT COUNT(*) AS n
-        FROM equipment
-        WHERE status = 'Disposed'
-    """)
-    disposed = cur.fetchone()["n"]
+    open_maintenance = cur.fetchall()
 
     cur.close()
     conn.close()
@@ -399,7 +535,9 @@ def dashboard():
         assigned=assigned,
         maintenance=maintenance,
         archived=archived,
-        disposed=disposed
+        disposed=disposed,
+        recent_transactions=recent_transactions,
+        open_maintenance=open_maintenance
     )
 
 
@@ -415,6 +553,19 @@ def equipment():
         "q",
         ""
     ).strip()
+    category_id = request.args.get("category", "").strip()
+    office_id = request.args.get("office", "").strip()
+    status = request.args.get("status", "").strip()
+    try:
+        category_id = int(category_id) if category_id else None
+    except ValueError:
+        category_id = None
+    try:
+        office_id = int(office_id) if office_id else None
+    except ValueError:
+        office_id = None
+    if status not in VALID_EQUIPMENT_STATUSES:
+        status = ""
 
     conn = db()
     cur = conn.cursor(dictionary=True)
@@ -438,12 +589,25 @@ def equipment():
             AND a.is_current = 1
     """
 
+    filters = []
     params = []
+
+    if category_id is not None:
+        filters.append("e.category_id = %s")
+        params.append(category_id)
+
+    if office_id is not None:
+        filters.append("e.office_id = %s")
+        params.append(office_id)
+
+    if status:
+        filters.append("e.status = %s")
+        params.append(status)
 
     if q:
 
-        sql += """
-            WHERE
+        filters.append("""
+            (
                 e.asset_code LIKE %s
                 OR e.name LIKE %s
                 OR e.serial_number LIKE %s
@@ -451,11 +615,12 @@ def equipment():
                 OR o.name LIKE %s
                 OR e.status LIKE %s
                 OR a.person_name LIKE %s
-        """
+            )
+        """)
 
         search = f"%{q}%"
 
-        params = [
+        params.extend([
             search,
             search,
             search,
@@ -463,7 +628,10 @@ def equipment():
             search,
             search,
             search
-        ]
+        ])
+
+    if filters:
+        sql += " WHERE " + " AND ".join(filters)
 
     sql += """
         ORDER BY e.id DESC
@@ -476,13 +644,56 @@ def equipment():
 
     rows = cur.fetchall()
 
+    if request.args.get("export") == "csv":
+        output = StringIO(newline="")
+        writer = csv.writer(output)
+        writer.writerow([
+            "Asset Code",
+            "Equipment",
+            "Category",
+            "Office",
+            "Serial Number",
+            "Status",
+            "Accountable Person",
+            "Acquisition Date",
+        ])
+        for row in rows:
+            writer.writerow([
+                csv_safe(row["asset_code"]),
+                csv_safe(row["name"]),
+                csv_safe(row["category_name"]),
+                csv_safe(row["office_name"]),
+                csv_safe(row["serial_number"]),
+                csv_safe(row["status"]),
+                csv_safe(row["accountable_person"]),
+                csv_safe(row["acquisition_date"]),
+            ])
+        response = make_response("\ufeff" + output.getvalue())
+        response.headers["Content-Type"] = "text/csv; charset=utf-8"
+        response.headers["Content-Disposition"] = "attachment; filename=items-equipment-report.csv"
+        return response
+
     cur.execute("""
-        SELECT id, name
-        FROM categories
-        ORDER BY name
+        SELECT
+            c.id,
+            c.name,
+            COUNT(e.id) AS equipment_count
+        FROM categories c
+        LEFT JOIN equipment e
+            ON e.category_id = c.id
+        GROUP BY c.id, c.name
+        ORDER BY c.name
     """)
 
     categories = cur.fetchall()
+    selected_category_name = next(
+        (
+            category["name"]
+            for category in categories
+            if category["id"] == category_id
+        ),
+        None
+    )
 
     cur.execute("""
         SELECT id, name
@@ -491,16 +702,51 @@ def equipment():
     """)
 
     offices = cur.fetchall()
+    selected_office_name = next(
+        (
+            office["name"]
+            for office in offices
+            if office["id"] == office_id
+        ),
+        None
+    )
+
+    cur.execute("""
+        SELECT status, COUNT(*) AS status_count
+        FROM equipment
+        GROUP BY status
+    """)
+    status_counts = {
+        row["status"]: row["status_count"]
+        for row in cur.fetchall()
+    }
 
     cur.close()
     conn.close()
+
+    if request.args.get("print") == "1":
+        return render_template(
+            "equipment_print.html",
+            equipment=rows,
+            q=q,
+            selected_category_name=selected_category_name,
+            selected_status=status,
+            selected_office_id=office_id,
+            selected_office_name=selected_office_name
+        )
 
     return render_template(
         "equipment.html",
         equipment=rows,
         categories=categories,
         offices=offices,
-        q=q
+        q=q,
+        selected_category_id=category_id,
+        selected_category_name=selected_category_name,
+        selected_office_id=office_id,
+        selected_office_name=selected_office_name,
+        selected_status=status,
+        status_counts=status_counts
     )
 
 
@@ -539,6 +785,26 @@ def view_equipment(item_id):
 
     equipment = cur.fetchone()
 
+    cur.execute("""
+        SELECT
+            m.*,
+            started.full_name AS started_by_name,
+            completed.full_name AS completed_by_name
+        FROM maintenance_records m
+        JOIN users started ON started.id = m.started_by
+        LEFT JOIN users completed ON completed.id = m.completed_by
+        WHERE m.equipment_id = %s
+        ORDER BY m.started_at DESC
+    """, (item_id,))
+    maintenance_history = cur.fetchall()
+    maintenance_record = next(
+        (
+            record for record in maintenance_history
+            if record["status"] == "Open"
+        ),
+        None
+    )
+
     cur.close()
     conn.close()
 
@@ -556,8 +822,128 @@ def view_equipment(item_id):
     return render_template(
         "equipment_view.html",
         equipment=equipment,
-        is_worker=is_worker()
+        is_worker=is_worker(),
+        maintenance_record=maintenance_record,
+        maintenance_history=maintenance_history
     )
+
+
+# ============================================================
+# MAINTENANCE WORKFLOW
+# ============================================================
+
+@app.route(
+    "/equipment/<int:item_id>/maintenance",
+    methods=["GET", "POST"]
+)
+@admin_required
+def equipment_maintenance(item_id):
+    conn = db()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute("""
+        SELECT id, asset_code, name, status
+        FROM equipment
+        WHERE id = %s
+    """, (item_id,))
+    equipment = cur.fetchone()
+
+    if not equipment:
+        cur.close()
+        conn.close()
+        flash("Equipment not found.", "danger")
+        return redirect(url_for("equipment"))
+
+    cur.execute("""
+        SELECT *
+        FROM maintenance_records
+        WHERE equipment_id = %s AND status = 'Open'
+        ORDER BY started_at DESC
+        LIMIT 1
+    """, (item_id,))
+    open_record = cur.fetchone()
+
+    if request.method == "GET":
+        cur.close()
+        conn.close()
+        return render_template(
+            "equipment_maintenance.html",
+            equipment=equipment,
+            maintenance_record=open_record
+        )
+
+    maintenance_action = request.form.get("maintenance_action", "start")
+    remarks = request.form.get("remarks", "").strip()
+
+    if not remarks:
+        cur.close()
+        conn.close()
+        flash("Maintenance remarks are required.", "danger")
+        return redirect(url_for("equipment_maintenance", item_id=item_id))
+
+    if maintenance_action == "start":
+        if open_record:
+            cur.close()
+            conn.close()
+            flash("This equipment already has an open maintenance record.", "danger")
+            return redirect(url_for("equipment_maintenance", item_id=item_id))
+        if not can_start_maintenance(equipment["status"]):
+            cur.close()
+            conn.close()
+            flash("Assigned, archived, or disposed equipment cannot enter maintenance.", "danger")
+            return redirect(url_for("view_equipment", item_id=item_id))
+
+        cur.execute("""
+            INSERT INTO maintenance_records
+                (equipment_id, started_by, remarks)
+            VALUES (%s, %s, %s)
+        """, (item_id, session["user_id"], remarks))
+        cur.execute("""
+            UPDATE equipment
+            SET status = 'Under Maintenance'
+            WHERE id = %s
+        """, (item_id,))
+        cur.execute("""
+            INSERT INTO transactions (equipment_id, user_id, action, details)
+            VALUES (%s, %s, 'Maintenance', %s)
+        """, (item_id, session["user_id"], f"Maintenance started: {remarks}"))
+        conn.commit()
+        flash("Maintenance started.", "success")
+    elif maintenance_action == "complete":
+        if not can_complete_maintenance(open_record):
+            cur.close()
+            conn.close()
+            flash("There is no open maintenance record for this equipment.", "danger")
+            return redirect(url_for("equipment_maintenance", item_id=item_id))
+
+        cur.execute("""
+            UPDATE maintenance_records
+            SET status = 'Completed',
+                completed_by = %s,
+                completed_at = NOW(),
+                completion_remarks = %s
+            WHERE id = %s
+        """, (session["user_id"], remarks, open_record["id"]))
+        cur.execute("""
+            UPDATE equipment
+            SET status = 'Available'
+            WHERE id = %s
+        """, (item_id,))
+        cur.execute("""
+            INSERT INTO transactions (equipment_id, user_id, action, details)
+            VALUES (%s, %s, 'Repair', %s)
+        """, (item_id, session["user_id"], f"Maintenance completed: {remarks}"))
+        conn.commit()
+        flash("Maintenance completed. Equipment is now available.", "success")
+    else:
+        cur.close()
+        conn.close()
+        flash("Invalid maintenance action.", "danger")
+        return redirect(url_for("equipment_maintenance", item_id=item_id))
+
+    cur.close()
+    conn.close()
+    return redirect(url_for("view_equipment", item_id=item_id))
 
 
 # ============================================================
@@ -891,10 +1277,10 @@ def archive_equipment(item_id):
             url_for("equipment")
         )
 
-    if equipment["status"] in {"Archived", "Disposed"}:
+    if equipment["status"] in {"Archived", "Disposed", "Under Maintenance"}:
         cur.close()
         conn.close()
-        flash("Archived or disposed equipment cannot be archived again.", "danger")
+        flash("Archived, disposed, or maintained equipment cannot be archived.", "danger")
         return redirect(url_for("equipment"))
 
     cur.execute("""
@@ -969,6 +1355,55 @@ def archive_equipment(item_id):
 
 
 # ============================================================
+# RESTORE ARCHIVED EQUIPMENT
+# ============================================================
+
+@app.route(
+    "/equipment/restore/<int:item_id>",
+    methods=["POST"]
+)
+@admin_required
+def restore_equipment(item_id):
+    conn = db()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute("""
+        SELECT id, status
+        FROM equipment
+        WHERE id = %s
+    """, (item_id,))
+    equipment = cur.fetchone()
+
+    if not equipment:
+        cur.close()
+        conn.close()
+        flash("Equipment not found.", "danger")
+        return redirect(url_for("equipment"))
+
+    if equipment["status"] != "Archived":
+        cur.close()
+        conn.close()
+        flash("Only archived equipment can be restored.", "danger")
+        return redirect(url_for("view_equipment", item_id=item_id))
+
+    cur.execute("""
+        UPDATE equipment
+        SET status = 'Available'
+        WHERE id = %s AND status = 'Archived'
+    """, (item_id,))
+    cur.execute("""
+        INSERT INTO transactions (equipment_id, user_id, action, details)
+        VALUES (%s, %s, 'Restored', 'Equipment restored from archive')
+    """, (item_id, session["user_id"]))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Equipment restored and marked available.", "success")
+    return redirect(url_for("view_equipment", item_id=item_id))
+
+
+# ============================================================
 # DISPOSE EQUIPMENT
 # Worker CANNOT ACCESS
 # ============================================================
@@ -997,7 +1432,7 @@ def dispose_equipment(item_id):
         flash("Equipment not found.", "danger")
         return redirect(url_for("equipment"))
 
-    if equipment["status"] in {"Archived", "Disposed"}:
+    if equipment["status"] in {"Archived", "Disposed", "Under Maintenance"}:
         cur.close()
         conn.close()
         flash("This equipment cannot be disposed in its current status.", "danger")
@@ -1145,10 +1580,10 @@ def assign_equipment(item_id):
             url_for("equipment")
         )
 
-    if equipment["status"] in {"Archived", "Disposed"}:
+    if equipment["status"] in {"Archived", "Disposed", "Under Maintenance"}:
         cur.close()
         conn.close()
-        flash("Archived or disposed equipment cannot be assigned.", "danger")
+        flash("Archived, disposed, or maintained equipment cannot be assigned.", "danger")
         return redirect(url_for("equipment"))
 
     cur.execute("""
@@ -1430,6 +1865,20 @@ def unassign_equipment(item_id):
 def transactions():
 
     q = request.args.get("q", "").strip()
+    action = request.args.get("action", "").strip()
+    date_from = request.args.get("date_from", "").strip()
+    date_to = request.args.get("date_to", "").strip()
+
+    if action not in TRANSACTION_ACTIONS:
+        action = ""
+
+    try:
+        date_from = parse_optional_date(date_from, "start date")
+        date_to = parse_optional_date(date_to, "end date")
+    except ValueError:
+        date_from = ""
+        date_to = ""
+
     conn = db()
     cur = conn.cursor(dictionary=True)
 
@@ -1448,18 +1897,36 @@ def transactions():
             ON t.user_id = u.id
     """
 
+    filters = []
     params = []
 
     if q:
-        sql += """
-            WHERE CAST(t.created_at AS CHAR) LIKE %s
-               OR e.asset_code LIKE %s
-               OR e.name LIKE %s
-               OR t.action LIKE %s
-               OR u.full_name LIKE %s
-        """
+        filters.append("""
+            (
+                CAST(t.created_at AS CHAR) LIKE %s
+                OR e.asset_code LIKE %s
+                OR e.name LIKE %s
+                OR t.action LIKE %s
+                OR u.full_name LIKE %s
+            )
+        """)
         search = f"%{q}%"
-        params = [search] * 5
+        params.extend([search] * 5)
+
+    if action:
+        filters.append("t.action = %s")
+        params.append(action)
+
+    if date_from:
+        filters.append("t.created_at >= %s")
+        params.append(date_from)
+
+    if date_to:
+        filters.append("t.created_at < DATE_ADD(%s, INTERVAL 1 DAY)")
+        params.append(date_to)
+
+    if filters:
+        sql += " WHERE " + " AND ".join(filters)
 
     sql += " ORDER BY t.created_at DESC"
 
@@ -1470,10 +1937,40 @@ def transactions():
     cur.close()
     conn.close()
 
+    if request.args.get("export") == "csv":
+        output = StringIO(newline="")
+        writer = csv.writer(output)
+        writer.writerow([
+            "Date",
+            "Asset Code",
+            "Equipment",
+            "Action",
+            "Details",
+            "Performed By",
+        ])
+        for row in rows:
+            writer.writerow([
+                csv_safe(row["created_at"]),
+                csv_safe(row["asset_code"]),
+                csv_safe(row["equipment_name"]),
+                csv_safe(row["action"]),
+                csv_safe(row["details"]),
+                csv_safe(row["full_name"]),
+            ])
+
+        response = make_response("\ufeff" + output.getvalue())
+        response.headers["Content-Type"] = "text/csv; charset=utf-8"
+        response.headers["Content-Disposition"] = "attachment; filename=items-transaction-report.csv"
+        return response
+
     return render_template(
         "transactions.html",
         transactions=rows,
-        q=q
+        q=q,
+        action=action,
+        date_from=date_from or "",
+        date_to=date_to or "",
+        transaction_actions=TRANSACTION_ACTIONS
     )
 
 
@@ -1749,11 +2246,11 @@ def api_equipment(asset_code):
 
 # ============================================================
 # USERS
-# SUPER ADMIN ONLY
+# SUPER ADMIN AND ADMIN
 # ============================================================
 
 @app.route("/users")
-@super_admin_required
+@user_management_required
 def users():
     conn = db()
     cur = conn.cursor(dictionary=True)
@@ -1764,6 +2261,7 @@ def users():
             u.username,
             u.full_name,
             u.email,
+            u.profile_picture,
             u.is_active,
             r.name AS role_name
         FROM users u
@@ -1776,11 +2274,14 @@ def users():
 
     rows = cur.fetchall()
 
-    cur.execute("""
+    allowed_roles = creatable_roles(g.current_user["role_name"])
+    role_placeholders = ", ".join(["%s"] * len(allowed_roles))
+    cur.execute(f"""
         SELECT id, name
         FROM roles
+        WHERE name IN ({role_placeholders})
         ORDER BY id
-    """)
+    """, allowed_roles)
 
     roles = cur.fetchall()
 
@@ -1796,14 +2297,14 @@ def users():
 
 # ============================================================
 # ADD USER
-# SUPER ADMIN ONLY
+# SUPER ADMIN AND ADMIN
 # ============================================================
 
 @app.route(
     "/users/add",
     methods=["POST"]
 )
-@super_admin_required
+@user_management_required
 def add_user():
     # ========================================================
     # GET SELECTED ROLE
@@ -1812,11 +2313,14 @@ def add_user():
     try:
         username = clean_text(request.form.get("username"), "Username", 80)
         password = clean_text(request.form.get("password"), "Password", 255)
+        confirm_password = request.form.get("confirm_password", "")
         full_name = clean_text(request.form.get("full_name"), "Full name", 150)
         email = optional_text(request.form.get("email"), 150)
         role_id = request.form.get("role_id")
         if len(password) < 8:
             raise ValueError("Password must be at least 8 characters long.")
+        if password != confirm_password:
+            raise ValueError("Password and confirmation do not match.")
     except ValueError as error:
         flash(str(error), "danger")
         return redirect(url_for("users"))
@@ -1839,16 +2343,21 @@ def add_user():
     selected_role = cur.fetchone()
 
     # ========================================================
-    # BLOCK SUPER ADMIN CREATION
+    # CHECK ROLE PERMISSION
     # ========================================================
 
-    if selected_role and selected_role["name"].strip().lower() == "super admin":
+    allowed_roles = creatable_roles(g.current_user["role_name"])
+    allowed_role_names = {role.lower() for role in allowed_roles}
+    if (
+        not selected_role
+        or selected_role["name"].strip().lower() not in allowed_role_names
+    ):
 
         cur.close()
         conn.close()
 
         flash(
-            "Creating a Super Admin account is not allowed.",
+            "You are not allowed to create an account with that role.",
             "danger"
         )
 
@@ -1905,6 +2414,220 @@ def add_user():
     return redirect(
         url_for("users")
     )
+
+
+# ============================================================
+# PROFILE
+# Every signed-in user may maintain their own contact details and password.
+# ============================================================
+
+@app.route("/profile", methods=["GET", "POST"])
+@login_required
+def profile():
+    if request.method == "POST":
+        conn = None
+        cur = None
+        try:
+            full_name = clean_text(request.form.get("full_name"), "Full name", 150)
+            email = optional_text(request.form.get("email"), 150)
+            current_password = request.form.get("current_password", "")
+            new_password = request.form.get("new_password", "")
+            confirm_password = request.form.get("confirm_password", "")
+
+            if new_password or confirm_password:
+                if not current_password:
+                    raise ValueError("Current password is required to change your password.")
+                if len(new_password) < 8:
+                    raise ValueError("New password must be at least 8 characters long.")
+                if new_password != confirm_password:
+                    raise ValueError("New password and confirmation do not match.")
+
+            profile_picture = None
+            uploaded_picture = request.files.get("profile_picture")
+            if uploaded_picture and uploaded_picture.filename:
+                if g.current_user["role_name"].strip().lower() not in MANAGEMENT_ROLES:
+                    raise ValueError("Only Super Admin and Admin accounts may change profile pictures.")
+                safe_name = secure_filename(uploaded_picture.filename)
+                extension = safe_name.rsplit(".", 1)[-1].lower() if "." in safe_name else ""
+                if extension not in PROFILE_IMAGE_EXTENSIONS:
+                    raise ValueError("Profile picture must be JPG, PNG, GIF, or WEBP.")
+                profile_picture = f"{g.current_user['id']}_{secrets.token_hex(8)}.{extension}"
+                os.makedirs(PROFILE_UPLOAD_DIR, exist_ok=True)
+                uploaded_picture.save(os.path.join(PROFILE_UPLOAD_DIR, profile_picture))
+
+            conn = db()
+            cur = conn.cursor(dictionary=True)
+            cur.execute("SELECT password_hash, profile_picture FROM users WHERE id = %s", (g.current_user["id"],))
+            account = cur.fetchone()
+            if new_password and (not account or not check_password_hash(account["password_hash"], current_password)):
+                raise ValueError("Current password is incorrect.")
+
+            if new_password:
+                cur.execute("""
+                    UPDATE users
+                    SET full_name = %s, email = %s, password_hash = %s, profile_picture = COALESCE(%s, profile_picture)
+                    WHERE id = %s
+                """, (full_name, email, generate_password_hash(new_password), profile_picture, g.current_user["id"]))
+            else:
+                cur.execute("""
+                    UPDATE users SET full_name = %s, email = %s,
+                    profile_picture = COALESCE(%s, profile_picture)
+                    WHERE id = %s
+                """, (full_name, email, profile_picture, g.current_user["id"]))
+            conn.commit()
+            session["full_name"] = full_name
+            if profile_picture:
+                session["profile_picture"] = profile_picture
+                if account and account.get("profile_picture") and account["profile_picture"] != profile_picture:
+                    old_picture = os.path.join(PROFILE_UPLOAD_DIR, account["profile_picture"])
+                    if os.path.isfile(old_picture):
+                        os.remove(old_picture)
+            flash("Profile updated.", "success")
+        except ValueError as error:
+            flash(str(error), "danger")
+        finally:
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
+        return redirect(url_for("profile"))
+
+    return render_template("profile.html", user=g.current_user)
+
+
+# ============================================================
+# SUPER ADMIN ACCOUNT CONTROLS
+# Super Admin may reset or disable Admin/Worker accounts only.
+# ============================================================
+
+@app.route("/users/<int:user_id>/update", methods=["POST"])
+@user_management_required
+def update_managed_user(user_id):
+    conn = None
+    cur = None
+    new_picture_path = None
+    try:
+        full_name = clean_text(request.form.get("full_name"), "Full name", 150)
+        email = optional_text(request.form.get("email"), 150)
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        if new_password and len(new_password) < 8:
+            raise ValueError("Password must be at least 8 characters long.")
+        if new_password != confirm_password:
+            raise ValueError("New password and confirmation do not match.")
+
+        conn = db()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("""
+            SELECT u.id, u.username, u.profile_picture, r.name AS role_name
+            FROM users u JOIN roles r ON r.id = u.role_id
+            WHERE u.id = %s
+        """, (user_id,))
+        target = cur.fetchone()
+        allowed = {role.lower() for role in manageable_roles(g.current_user["role_name"])}
+        if not target or target["role_name"].strip().lower() not in allowed:
+            raise ValueError("You are not allowed to update this account.")
+
+        uploaded_picture = request.files.get("profile_picture")
+        profile_picture = None
+        if uploaded_picture and uploaded_picture.filename:
+            safe_name = secure_filename(uploaded_picture.filename)
+            extension = safe_name.rsplit(".", 1)[-1].lower() if "." in safe_name else ""
+            if extension not in PROFILE_IMAGE_EXTENSIONS:
+                raise ValueError("Profile picture must be JPG, PNG, GIF, or WEBP.")
+            profile_picture = f"{user_id}_{secrets.token_hex(8)}.{extension}"
+            os.makedirs(PROFILE_UPLOAD_DIR, exist_ok=True)
+            new_picture_path = os.path.join(PROFILE_UPLOAD_DIR, profile_picture)
+            uploaded_picture.save(new_picture_path)
+
+        cur.execute("""
+            UPDATE users
+            SET full_name = %s,
+                email = %s,
+                profile_picture = COALESCE(%s, profile_picture),
+                password_hash = COALESCE(%s, password_hash)
+            WHERE id = %s
+        """, (full_name, email, profile_picture, generate_password_hash(new_password) if new_password else None, user_id))
+        conn.commit()
+        if profile_picture and target.get("profile_picture") and target["profile_picture"] != profile_picture:
+            old_picture_path = os.path.join(PROFILE_UPLOAD_DIR, target["profile_picture"])
+            if os.path.isfile(old_picture_path):
+                os.remove(old_picture_path)
+        flash(f"{target['username']} account updated.", "success")
+    except ValueError as error:
+        if new_picture_path and os.path.isfile(new_picture_path):
+            os.remove(new_picture_path)
+        flash(str(error), "danger")
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+    return redirect(url_for("users"))
+
+
+@app.route("/users/<int:user_id>/reset-password", methods=["POST"])
+@user_management_required
+def reset_user_password(user_id):
+    try:
+        new_password = clean_text(request.form.get("new_password"), "New password", 255)
+        confirm_password = request.form.get("confirm_password", "")
+        if len(new_password) < 8:
+            raise ValueError("Password must be at least 8 characters long.")
+        if new_password != confirm_password:
+            raise ValueError("New password and confirmation do not match.")
+    except ValueError as error:
+        flash(str(error), "danger")
+        return redirect(url_for("users"))
+
+    conn = db()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT u.id, u.username, r.name AS role_name
+        FROM users u JOIN roles r ON r.id = u.role_id
+        WHERE u.id = %s
+    """, (user_id,))
+    target = cur.fetchone()
+    allowed = {role.lower() for role in manageable_roles(g.current_user["role_name"])}
+    if not target or target["role_name"].strip().lower() not in allowed:
+        cur.close()
+        conn.close()
+        flash("Only Admin and Worker passwords can be reset here.", "danger")
+        return redirect(url_for("users"))
+
+    cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (generate_password_hash(new_password), user_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    flash(f"Password reset for {target['username']}.", "success")
+    return redirect(url_for("users"))
+
+
+@app.route("/users/<int:user_id>/toggle-status", methods=["POST"])
+@user_management_required
+def toggle_user_status(user_id):
+    conn = db()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT u.id, u.username, u.is_active, r.name AS role_name
+        FROM users u JOIN roles r ON r.id = u.role_id
+        WHERE u.id = %s
+    """, (user_id,))
+    target = cur.fetchone()
+    allowed = {role.lower() for role in manageable_roles(g.current_user["role_name"])}
+    if not target or target["role_name"].strip().lower() not in allowed:
+        cur.close()
+        conn.close()
+        flash("Only Admin and Worker accounts can be activated or deactivated here.", "danger")
+        return redirect(url_for("users"))
+
+    new_status = 0 if target["is_active"] else 1
+    cur.execute("UPDATE users SET is_active = %s WHERE id = %s", (new_status, user_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    flash(f"{target['username']} is now {'active' if new_status else 'inactive'}.", "success")
+    return redirect(url_for("users"))
 
 
 # ============================================================

@@ -18,7 +18,7 @@
                 <dt class="col-sm-3">Asset Code</dt>
                 <dd class="col-sm-9">{{ equipment.asset_code }}</dd>
                 <dt class="col-sm-3">Current Status</dt>
-                <dd class="col-sm-9">{{ equipment.status }}</dd>
+                <dd class="col-sm-9"><span class="status-badge status-{{ equipment.status | lower | replace(' ', '-') }}">{{ equipment.status }}</span></dd>
             </dl>
 
             <form method="post" action="{{ url_for('dispose_equipment', item_id=equipment.id) }}">

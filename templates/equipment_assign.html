@@ -67,7 +67,7 @@
                 <div class="col-md-4 mb-3">
                     <label class="text-muted">Status</label>
                     <div>
-                        {{ equipment.status or 'N/A' }}
+                        <span class="status-badge status-{{ equipment.status | lower | replace(' ', '-') }}">{{ equipment.status or 'N/A' }}</span>
                     </div>
                 </div>
 
@@ -207,6 +207,7 @@
                     <button
                         type="submit"
                         class="btn btn-primary"
+                        onclick="return confirm('Assign this equipment to the selected accountable person?')"
                     >
                         Assign Equipment
                     </button>

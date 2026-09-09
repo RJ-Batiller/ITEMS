@@ -37,4 +37,4 @@ def test_status_changes_reject_unknown_status():
 
     assert validate_status_change("Available", "Unknown") is False
     assert validate_status_change("Disposed", "Available") is False
-    assert validate_status_change("Available", "Under Maintenance") is True
+    assert validate_status_change("Available", "Under Maintenance") is False

@@ -1,12 +1,36 @@
-{% extends "base.html" %}{% block content %}
-<h2 class="fw-bold mb-4">Users</h2>
-<div class="card shadow-sm mb-3"><div class="card-body"><form method="post" action="{{url_for('add_user')}}" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<div class="col-md-2"><input class="form-control" name="username" placeholder="Username" required></div>
-<div class="col-md-2"><input class="form-control" type="password" minlength="8" name="password" placeholder="Password" required></div>
-<div class="col-md-3"><input class="form-control" name="full_name" placeholder="Full name" required></div>
-<div class="col-md-3"><input class="form-control" name="email" placeholder="Email"></div>
-<div class="col-md-1"><select class="form-select" name="role_id">{% for r in roles %}<option value="{{r.id}}">{{r.name}}</option>{% endfor %}</select></div>
-<div class="col-md-1"><button class="btn btn-primary">Add</button></div>
-</form></div></div>
-<div class="card shadow-sm"><div class="card-body table-responsive"><table class="table"><thead><tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead><tbody>{% for u in users %}<tr><td>{{u.username}}</td><td>{{u.full_name}}</td><td>{{u.email or '-'}}</td><td>{{u.role_name}}</td><td>{{'Active' if u.is_active else 'Inactive'}}</td></tr>{% endfor %}</tbody></table></div></div>
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading">
+    <div class="catalog-kicker">Access control / team directory</div>
+    <h1>Users</h1>
+    <p class="text-muted mb-0">Create and monitor the accounts that operate the inventory system.</p>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-xl-8">
+        <div class="card h-100"><div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3"><div><h2 class="h5 mb-1">Create account</h2><p class="text-muted small mb-0">Available roles follow your permission level.</p></div><span class="status-badge status-available">{{ roles|length }} role options</span></div>
+            <form method="post" action="{{ url_for('add_user') }}" class="row g-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-4"><label class="form-label" for="username">Username</label><input class="form-control" id="username" name="username" required></div>
+                <div class="col-md-4"><label class="form-label" for="password">Password</label><input class="form-control" id="password" type="password" minlength="8" name="password" autocomplete="new-password" required></div>
+                <div class="col-md-4"><label class="form-label" for="confirm_password">Confirm password</label><input class="form-control" id="confirm_password" type="password" minlength="8" name="confirm_password" autocomplete="new-password" required></div>
+                <div class="col-md-4"><label class="form-label" for="role_id">Role</label><select class="form-select" id="role_id" name="role_id" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
+                <div class="col-md-5"><label class="form-label" for="full_name">Full name</label><input class="form-control" id="full_name" name="full_name" required></div>
+                <div class="col-md-5"><label class="form-label" for="email">Email</label><input class="form-control" id="email" type="email" name="email"></div>
+                <div class="col-md-2 d-flex align-items-end"><button class="btn btn-primary w-100">Create</button></div>
+            </form>
+        </div></div>
+    </div>
+    <div class="col-xl-4"><div class="card h-100"><div class="card-body"><div class="catalog-kicker">Your access</div><h2 class="h5 mt-2">{{ g.current_user.full_name }}</h2><p class="text-muted mb-3">{{ g.current_user.role_name }} account</p><a class="btn btn-outline-danger" href="{{ url_for('profile') }}">Open My Profile</a><p class="small text-muted mt-3 mb-0">{% if g.current_user.role_name|lower == 'super admin' %}You can update Admin and Worker accounts.{% else %}You can update Worker accounts.{% endif %} Passwords are always stored as secure hashes and never revealed.</p></div></div></div>
+</div>
+
+<div class="card"><div class="card-body table-responsive">
+    <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h5 mb-0">Team directory</h2><span class="text-muted small">{{ users|length }} account(s)</span></div>
+    <table class="table align-middle mb-0"><thead><tr><th>Profile</th><th>Account</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th>{% if g.current_user.role_name|lower in ['super admin', 'admin'] %}<th class="text-end">Controls</th>{% endif %}</tr></thead><tbody>
+    {% for u in users %}<tr><td>{% if u.profile_picture %}<img class="directory-profile-picture" src="{{ url_for('static', filename='uploads/profiles/' ~ u.profile_picture, v=u.profile_picture) }}" alt="{{ u.full_name }} profile picture">{% else %}<span class="directory-profile-fallback">{{ u.full_name[:1]|upper }}</span>{% endif %}</td><td><strong>{{ u.username }}</strong></td><td>{{ u.full_name }}</td><td>{{ u.email or '-' }}</td><td>{{ u.role_name }}</td><td><span class="status-badge {{ 'status-available' if u.is_active else 'status-archived' }}">{{ 'Active' if u.is_active else 'Inactive' }}</span></td>
+    {% if g.current_user.role_name|lower in ['super admin', 'admin'] %}<td class="text-end">{% if u.role_name|lower in (['admin', 'worker'] if g.current_user.role_name|lower == 'super admin' else ['worker']) %}<details class="d-inline-block text-start"><summary class="btn btn-sm btn-outline-danger">Edit account</summary><form method="post" enctype="multipart/form-data" action="{{ url_for('update_managed_user', user_id=u.id) }}" class="mt-2 p-3 border rounded bg-light"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="form-label small">Full name</label><input class="form-control form-control-sm mb-2" name="full_name" value="{{ u.full_name }}" required><label class="form-label small">Email</label><input class="form-control form-control-sm mb-2" type="email" name="email" value="{{ u.email or '' }}"><label class="form-label small">New profile picture</label><input class="form-control form-control-sm mb-2" type="file" name="profile_picture" accept=".jpg,.jpeg,.png,.gif,.webp"><label class="form-label small">New password <span class="text-muted">(optional)</span></label><input class="form-control form-control-sm mb-2" type="password" name="new_password" minlength="8" autocomplete="new-password"><label class="form-label small">Confirm password</label><input class="form-control form-control-sm mb-2" type="password" name="confirm_password" minlength="8" autocomplete="new-password"><button class="btn btn-sm btn-danger">Save changes</button></form></details><form method="post" action="{{ url_for('toggle_user_status', user_id=u.id) }}" class="d-inline-block"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-secondary">{{ 'Deactivate' if u.is_active else 'Activate' }}</button></form>{% else %}<span class="text-muted small">Protected account</span>{% endif %}</td>{% endif %}</tr>
+    {% else %}<tr><td colspan="7" class="dashboard-empty">No accounts found.</td></tr>{% endfor %}
+    </tbody></table>
+</div></div>
 {% endblock %}
