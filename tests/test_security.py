@@ -32,9 +32,25 @@ def test_login_form_contains_csrf_token(client):
     assert b'name="csrf_token"' in response.data
 
 
+def test_unknown_page_uses_safe_error_view(client):
+    response = client.get("/page-that-does-not-exist")
+
+    assert response.status_code == 404
+    assert b"Page not found" in response.data
+    assert b"Traceback" not in response.data
+
+
 def test_status_changes_reject_unknown_status():
     from app import validate_status_change
 
     assert validate_status_change("Available", "Unknown") is False
     assert validate_status_change("Disposed", "Available") is False
     assert validate_status_change("Available", "Under Maintenance") is False
+
+
+def test_email_validation_rejects_malformed_values():
+    from app import optional_email
+
+    assert optional_email("admin@example.com") == "admin@example.com"
+    with pytest.raises(ValueError):
+        optional_email("not-an-email")

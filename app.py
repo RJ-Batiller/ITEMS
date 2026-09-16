@@ -1,7 +1,9 @@
 import os
 import hmac
 import csv
+import json
 import secrets
+import re
 from functools import wraps
 from datetime import date
 
@@ -77,6 +79,7 @@ app.config.update(
 
 PROFILE_UPLOAD_DIR = os.path.join(app.root_path, "static", "uploads", "profiles")
 PROFILE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
+EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 MAINTENANCE_SCHEMA_SQL = """
@@ -126,8 +129,30 @@ def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; frame-ancestors 'self'")
+    response.headers.setdefault("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; frame-ancestors 'self'")
     return response
+
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template("error.html", code=404, title="Page not found", message="The page you requested does not exist."), 404
+
+
+@app.errorhandler(413)
+def request_too_large(error):
+    return render_template("error.html", code=413, title="File too large", message="The uploaded file is larger than the 4 MB limit."), 413
+
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    app.logger.exception("Unhandled application error")
+    return render_template("error.html", code=500, title="Something went wrong", message="The request could not be completed. Please try again."), 500
+
+
+@app.errorhandler(mysql.connector.Error)
+def database_error(error):
+    app.logger.exception("Database error")
+    return render_template("error.html", code=503, title="Database unavailable", message="The database could not complete this request. Confirm that MySQL is running, then try again."), 503
 
 
 # ============================================================
@@ -164,6 +189,8 @@ VALID_EQUIPMENT_STATUSES = {
     "Disposed"
 }
 
+EQUIPMENT_ITEM_TYPES = ("Consumable", "Non-Consumable")
+
 TRANSACTION_ACTIONS = (
     "Created",
     "Updated",
@@ -187,6 +214,17 @@ EQUIPMENT_WRITE_ACTIONS = {
     "unassign",
     "maintenance",
 }
+
+RESTRICTABLE_FEATURES = (
+    ("add", "Add equipment"),
+    ("edit", "Edit equipment"),
+    ("assign", "Assign equipment"),
+    ("maintenance", "Maintenance"),
+    ("archive", "Archive and restore"),
+    ("dispose", "Dispose equipment"),
+    ("categories", "Manage categories"),
+    ("offices", "Manage offices"),
+)
 
 
 def validate_status_change(old_status, new_status):
@@ -228,6 +266,23 @@ def parse_optional_date(value, field_name):
     return value
 
 
+def optional_email(value):
+    value = optional_text(value, 150)
+    if value and not EMAIL_PATTERN.fullmatch(value):
+        raise ValueError("Please provide a valid email address.")
+    return value
+
+
+def required_id(value, field_name):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{field_name} is required.") from error
+    if parsed <= 0:
+        raise ValueError(f"{field_name} is required.")
+    return parsed
+
+
 def csv_safe(value):
     """Prevent spreadsheet formulas from executing when a CSV is opened."""
     value = "" if value is None else str(value)
@@ -236,14 +291,48 @@ def csv_safe(value):
     return value
 
 
-def can_perform_action(role_name, action):
-    """Return whether a role may perform a named application action."""
+def csv_datetime(value):
+    if value is None:
+        return ""
+    return value.strftime("%Y-%m-%d %H:%M:%S") if hasattr(value, "strftime") else str(value)
+
+
+def role_allows_action(role_name, action):
     role = (role_name or "").strip().lower()
     if action == "manage_users":
+        return role in MANAGEMENT_ROLES
+    if action in {"categories", "offices"}:
         return role in MANAGEMENT_ROLES
     if action in EQUIPMENT_WRITE_ACTIONS:
         return role in MANAGEMENT_ROLES
     return action in {"view", "view_transactions", "view_qr"} and bool(role)
+
+
+def parse_feature_permissions(value):
+    if isinstance(value, dict):
+        return value
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except (TypeError, ValueError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def can_perform_action(role_name, action, feature_permissions=None):
+    """Return whether a role/user may perform a named application action."""
+    permissions = parse_feature_permissions(feature_permissions)
+    if action in permissions:
+        return bool(permissions[action])
+    return role_allows_action(role_name, action)
+
+
+def user_feature_enabled(feature_permissions, role_name, action):
+    return can_perform_action(role_name, action, feature_permissions)
+
+
+app.template_global("user_feature_enabled")(user_feature_enabled)
 
 
 def can_start_maintenance(status):
@@ -292,7 +381,7 @@ def get_current_user():
     conn = db()
     cur = conn.cursor(dictionary=True)
     cur.execute("""
-        SELECT u.id, u.username, u.full_name, u.email, u.profile_picture, u.is_active, r.name AS role_name
+        SELECT u.id, u.username, u.full_name, u.email, u.profile_picture, u.feature_permissions, u.is_active, r.name AS role_name
         FROM users u
         JOIN roles r ON r.id = u.role_id
         WHERE u.id = %s AND u.is_active = 1
@@ -353,31 +442,33 @@ def manageable_roles(role_name):
 # Worker accounts cannot modify equipment/categories
 # ============================================================
 
-def admin_required(fn):
+def admin_required(action="edit"):
+    def decorator(fn):
 
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
 
-        user = get_current_user()
-        if not user:
-            session.clear()
-            return redirect(url_for("login"))
+            user = get_current_user()
+            if not user:
+                session.clear()
+                return redirect(url_for("login"))
 
-        g.current_user = user
-        if not can_perform_action(user["role_name"], "edit"):
+            g.current_user = user
+            if not can_perform_action(user["role_name"], action, user.get("feature_permissions")):
 
-            flash(
-                "Worker accounts have view-only access.",
-                "danger"
-            )
+                flash(
+                    "Your account does not have access to this feature.",
+                    "danger"
+                )
 
-            return redirect(
-                url_for("equipment")
-            )
+                return redirect(
+                    url_for("equipment")
+                )
 
-        return fn(*args, **kwargs)
+            return fn(*args, **kwargs)
 
-    return wrapper
+        return wrapper
+    return decorator
 
 
 # ============================================================
@@ -525,6 +616,56 @@ def dashboard():
     """)
     open_maintenance = cur.fetchall()
 
+    cur.execute("""
+        SELECT c.name, COUNT(e.id) AS equipment_count
+        FROM categories c
+        LEFT JOIN equipment e
+            ON e.category_id = c.id
+            AND e.status NOT IN ('Archived', 'Disposed')
+        GROUP BY c.id, c.name
+        ORDER BY equipment_count DESC, c.name
+        LIMIT 8
+    """)
+    category_breakdown = cur.fetchall()
+
+    cur.execute("""
+        SELECT o.name, COUNT(e.id) AS equipment_count
+        FROM offices o
+        LEFT JOIN equipment e
+            ON e.office_id = o.id
+            AND e.status NOT IN ('Archived', 'Disposed')
+        GROUP BY o.id, o.name
+        ORDER BY equipment_count DESC, o.name
+        LIMIT 8
+    """)
+    office_breakdown = cur.fetchall()
+
+    cur.execute("""
+        SELECT action, COUNT(*) AS action_count
+        FROM transactions
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        GROUP BY action
+        ORDER BY action_count DESC, action
+        LIMIT 6
+    """)
+    activity_breakdown = cur.fetchall()
+
+    cur.execute("""
+        SELECT COUNT(*) AS completed_count
+        FROM maintenance_records
+        WHERE status = 'Completed'
+          AND completed_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    """)
+    completed_maintenance_30d = cur.fetchone()["completed_count"]
+
+    active_total = total or 1
+    utilization_rate = round((assigned / active_total) * 100)
+    ready_rate = round(((available + assigned) / active_total) * 100)
+    category_max = max((row["equipment_count"] for row in category_breakdown), default=0)
+    office_max = max((row["equipment_count"] for row in office_breakdown), default=0)
+    activity_max = max((row["action_count"] for row in activity_breakdown), default=0)
+    activity_30d = sum(row["action_count"] for row in activity_breakdown)
+
     cur.close()
     conn.close()
 
@@ -537,7 +678,17 @@ def dashboard():
         archived=archived,
         disposed=disposed,
         recent_transactions=recent_transactions,
-        open_maintenance=open_maintenance
+        open_maintenance=open_maintenance,
+        category_breakdown=category_breakdown,
+        office_breakdown=office_breakdown,
+        activity_breakdown=activity_breakdown,
+        completed_maintenance_30d=completed_maintenance_30d,
+        utilization_rate=utilization_rate,
+        ready_rate=ready_rate,
+        category_max=category_max,
+        office_max=office_max,
+        activity_max=activity_max,
+        activity_30d=activity_30d
     )
 
 
@@ -556,6 +707,7 @@ def equipment():
     category_id = request.args.get("category", "").strip()
     office_id = request.args.get("office", "").strip()
     status = request.args.get("status", "").strip()
+    item_type = request.args.get("type", "").strip()
     try:
         category_id = int(category_id) if category_id else None
     except ValueError:
@@ -566,6 +718,8 @@ def equipment():
         office_id = None
     if status not in VALID_EQUIPMENT_STATUSES:
         status = ""
+    if item_type not in EQUIPMENT_ITEM_TYPES:
+        item_type = ""
 
     conn = db()
     cur = conn.cursor(dictionary=True)
@@ -603,6 +757,10 @@ def equipment():
     if status:
         filters.append("e.status = %s")
         params.append(status)
+
+    if item_type:
+        filters.append("e.item_type = %s")
+        params.append(item_type)
 
     if q:
 
@@ -646,11 +804,12 @@ def equipment():
 
     if request.args.get("export") == "csv":
         output = StringIO(newline="")
-        writer = csv.writer(output)
+        writer = csv.writer(output, lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
         writer.writerow([
-            "Asset Code",
+            "Property Number",
             "Equipment",
             "Category",
+            "Type",
             "Office",
             "Serial Number",
             "Status",
@@ -662,6 +821,7 @@ def equipment():
                 csv_safe(row["asset_code"]),
                 csv_safe(row["name"]),
                 csv_safe(row["category_name"]),
+                csv_safe(row["item_type"]),
                 csv_safe(row["office_name"]),
                 csv_safe(row["serial_number"]),
                 csv_safe(row["status"]),
@@ -721,6 +881,16 @@ def equipment():
         for row in cur.fetchall()
     }
 
+    cur.execute("""
+        SELECT item_type, COUNT(*) AS item_type_count
+        FROM equipment
+        GROUP BY item_type
+    """)
+    item_type_counts = {
+        row["item_type"]: row["item_type_count"]
+        for row in cur.fetchall()
+    }
+
     cur.close()
     conn.close()
 
@@ -731,6 +901,7 @@ def equipment():
             q=q,
             selected_category_name=selected_category_name,
             selected_status=status,
+            selected_item_type=item_type,
             selected_office_id=office_id,
             selected_office_name=selected_office_name
         )
@@ -746,6 +917,8 @@ def equipment():
         selected_office_id=office_id,
         selected_office_name=selected_office_name,
         selected_status=status,
+        selected_item_type=item_type,
+        item_type_counts=item_type_counts,
         status_counts=status_counts
     )
 
@@ -836,7 +1009,7 @@ def view_equipment(item_id):
     "/equipment/<int:item_id>/maintenance",
     methods=["GET", "POST"]
 )
-@admin_required
+@admin_required("maintenance")
 def equipment_maintenance(item_id):
     conn = db()
     cur = conn.cursor(dictionary=True)
@@ -955,20 +1128,23 @@ def equipment_maintenance(item_id):
     "/equipment/add",
     methods=["POST"]
 )
-@admin_required
+@admin_required("add")
 def add_equipment():
 
     data = request.form
     try:
-        asset_code = clean_text(data.get("asset_code"), "Asset code", 80)
+        asset_code = clean_text(data.get("asset_code"), "Property Number", 80)
         name = clean_text(data.get("name"), "Equipment name", 150)
         description = optional_text(data.get("description"), 5000)
         serial_number = optional_text(data.get("serial_number"), 150)
         specifications = optional_text(data.get("specifications"), 5000)
         acquisition_date = parse_optional_date(data.get("acquisition_date"), "acquisition date")
-        status = data.get("status", "Available")
-        if status not in {"Available", "Under Maintenance"}:
-            raise ValueError("New equipment must be Available or Under Maintenance.")
+        category_id = required_id(data.get("category_id"), "Category")
+        office_id = required_id(data.get("office_id"), "Office")
+        item_type = data.get("item_type", "").strip()
+        if item_type not in EQUIPMENT_ITEM_TYPES:
+            raise ValueError("Select Consumable or Non-Consumable.")
+        status = "Available"
     except ValueError as error:
         flash(str(error), "danger")
         return redirect(url_for("equipment"))
@@ -988,18 +1164,20 @@ def add_equipment():
                 serial_number,
                 specifications,
                 acquisition_date,
+                item_type,
                 status
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             asset_code,
             name,
             description,
-            data.get("category_id") or None,
-            data.get("office_id") or None,
+            category_id,
+            office_id,
             serial_number,
             specifications,
             acquisition_date,
+            item_type,
             status
         ))
 
@@ -1020,7 +1198,7 @@ def add_equipment():
     except IntegrityError as error:
         conn.rollback()
         if error.errno == 1062:
-            flash("That asset code already exists. Please use a unique asset code.", "danger")
+            flash("That Property Number already exists. Please use a unique Property Number.", "danger")
         else:
             flash("The equipment could not be added. Please check the entered values.", "danger")
         return redirect(url_for("equipment"))
@@ -1047,7 +1225,7 @@ def add_equipment():
     "/equipment/edit/<int:item_id>",
     methods=["GET"]
 )
-@admin_required
+@admin_required("edit")
 def edit_equipment(item_id):
 
     conn = db()
@@ -1111,7 +1289,7 @@ def edit_equipment(item_id):
     "/equipment/edit/<int:item_id>",
     methods=["POST"]
 )
-@admin_required
+@admin_required("edit")
 def update_equipment(item_id):
 
     data = request.form
@@ -1142,12 +1320,17 @@ def update_equipment(item_id):
         )
 
     try:
-        asset_code = clean_text(data.get("asset_code"), "Asset code", 80)
+        asset_code = clean_text(data.get("asset_code"), "Property Number", 80)
         name = clean_text(data.get("name"), "Equipment name", 150)
         description = optional_text(data.get("description"), 5000)
         serial_number = optional_text(data.get("serial_number"), 150)
         specifications = optional_text(data.get("specifications"), 5000)
         acquisition_date = parse_optional_date(data.get("acquisition_date"), "acquisition date")
+        category_id = required_id(data.get("category_id"), "Category")
+        office_id = required_id(data.get("office_id"), "Office")
+        item_type = data.get("item_type", "").strip()
+        if item_type not in EQUIPMENT_ITEM_TYPES:
+            raise ValueError("Select Consumable or Non-Consumable.")
         new_status = data.get("status", "Available")
     except ValueError as error:
         cur.close()
@@ -1172,6 +1355,7 @@ def update_equipment(item_id):
             serial_number = %s,
             specifications = %s,
             acquisition_date = %s,
+            item_type = %s,
             status = %s
         WHERE id = %s
     """, (
@@ -1182,19 +1366,17 @@ def update_equipment(item_id):
 
         description,
 
-        data.get(
-            "category_id"
-        ) or None,
+        category_id,
 
-        data.get(
-            "office_id"
-        ) or None,
+        office_id,
 
         serial_number,
 
         specifications,
 
         acquisition_date,
+
+        item_type,
 
         new_status,
 
@@ -1249,7 +1431,7 @@ def update_equipment(item_id):
     "/equipment/archive/<int:item_id>",
     methods=["POST"]
 )
-@admin_required
+@admin_required("archive")
 def archive_equipment(item_id):
 
     conn = db()
@@ -1362,7 +1544,7 @@ def archive_equipment(item_id):
     "/equipment/restore/<int:item_id>",
     methods=["POST"]
 )
-@admin_required
+@admin_required("archive")
 def restore_equipment(item_id):
     conn = db()
     cur = conn.cursor(dictionary=True)
@@ -1412,7 +1594,7 @@ def restore_equipment(item_id):
     "/equipment/dispose/<int:item_id>",
     methods=["GET", "POST"]
 )
-@admin_required
+@admin_required("dispose")
 def dispose_equipment(item_id):
 
     conn = db()
@@ -1542,7 +1724,7 @@ def dispose_equipment(item_id):
     "/equipment/assign/<int:item_id>",
     methods=["GET"]
 )
-@admin_required
+@admin_required("assign")
 def assign_equipment(item_id):
 
     conn = db()
@@ -1630,7 +1812,7 @@ def assign_equipment(item_id):
     "/equipment/assign/<int:item_id>",
     methods=["POST"]
 )
-@admin_required
+@admin_required("assign")
 def save_assignment(item_id):
 
     person_name = request.form.get(
@@ -1783,7 +1965,7 @@ def save_assignment(item_id):
     "/equipment/unassign/<int:item_id>",
     methods=["POST"]
 )
-@admin_required
+@admin_required("unassign")
 def unassign_equipment(item_id):
 
     conn = db()
@@ -1869,7 +2051,7 @@ def transactions():
     date_from = request.args.get("date_from", "").strip()
     date_to = request.args.get("date_to", "").strip()
 
-    if action not in TRANSACTION_ACTIONS:
+    if len(action) > 80:
         action = ""
 
     try:
@@ -1934,15 +2116,19 @@ def transactions():
 
     rows = cur.fetchall()
 
+    cur.execute("SELECT DISTINCT action FROM transactions WHERE action IS NOT NULL AND action <> '' ORDER BY action")
+    stored_actions = {row["action"] for row in cur.fetchall()}
+    transaction_actions = tuple(sorted(set(TRANSACTION_ACTIONS) | stored_actions))
+
     cur.close()
     conn.close()
 
     if request.args.get("export") == "csv":
         output = StringIO(newline="")
-        writer = csv.writer(output)
+        writer = csv.writer(output, lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
         writer.writerow([
             "Date",
-            "Asset Code",
+            "Property Number",
             "Equipment",
             "Action",
             "Details",
@@ -1950,7 +2136,7 @@ def transactions():
         ])
         for row in rows:
             writer.writerow([
-                csv_safe(row["created_at"]),
+                csv_datetime(row["created_at"]),
                 csv_safe(row["asset_code"]),
                 csv_safe(row["equipment_name"]),
                 csv_safe(row["action"]),
@@ -1970,7 +2156,7 @@ def transactions():
         action=action,
         date_from=date_from or "",
         date_to=date_to or "",
-        transaction_actions=TRANSACTION_ACTIONS
+        transaction_actions=transaction_actions
     )
 
 
@@ -2047,14 +2233,21 @@ def equipment_transactions(item_id):
 @login_required
 def categories():
 
+    q = request.args.get("q", "").strip()
+
     conn = db()
     cur = conn.cursor(dictionary=True)
 
-    cur.execute("""
+    sql = """
         SELECT *
         FROM categories
-        ORDER BY name
-    """)
+    """
+    params = []
+    if q:
+        sql += " WHERE name LIKE %s OR description LIKE %s"
+        params = [f"%{q}%", f"%{q}%"]
+    sql += " ORDER BY name"
+    cur.execute(sql, params)
 
     rows = cur.fetchall()
 
@@ -2063,7 +2256,8 @@ def categories():
 
     return render_template(
         "categories.html",
-        categories=rows
+        categories=rows,
+        q=q
     )
 
 
@@ -2076,7 +2270,7 @@ def categories():
     "/categories/add",
     methods=["POST"]
 )
-@admin_required
+@admin_required("categories")
 def add_category():
 
     try:
@@ -2120,6 +2314,111 @@ def add_category():
     return redirect(
         url_for("categories")
     )
+
+
+@app.route("/offices")
+@login_required
+def offices():
+    q = request.args.get("q", "").strip()
+    conn = db()
+    cur = conn.cursor(dictionary=True)
+    sql = """
+        SELECT o.id, o.name, o.description, COUNT(e.id) AS equipment_count
+        FROM offices o
+        LEFT JOIN equipment e ON e.office_id = o.id
+    """
+    params = []
+    if q:
+        sql += " WHERE o.name LIKE %s OR o.description LIKE %s"
+        params = [f"%{q}%", f"%{q}%"]
+    sql += " GROUP BY o.id, o.name, o.description ORDER BY o.name"
+    cur.execute(sql, params)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template("offices.html", offices=rows, q=q)
+
+
+@app.route("/offices/add", methods=["POST"])
+@admin_required("offices")
+def add_office():
+    try:
+        name = clean_text(request.form.get("name"), "Office name", 150)
+        description = optional_text(request.form.get("description"), 255)
+    except ValueError as error:
+        flash(str(error), "danger")
+        return redirect(url_for("offices"))
+
+    conn = db()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "INSERT INTO offices (name, description) VALUES (%s, %s)",
+            (name, description),
+        )
+        conn.commit()
+        flash("Office added.", "success")
+    except IntegrityError:
+        conn.rollback()
+        flash("That office already exists.", "danger")
+    finally:
+        cur.close()
+        conn.close()
+    return redirect(url_for("offices"))
+
+
+@app.route("/offices/<int:office_id>/edit", methods=["POST"])
+@admin_required("offices")
+def edit_office(office_id):
+    try:
+        name = clean_text(request.form.get("name"), "Office name", 150)
+        description = optional_text(request.form.get("description"), 255)
+    except ValueError as error:
+        flash(str(error), "danger")
+        return redirect(url_for("offices"))
+
+    conn = db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM offices WHERE id = %s", (office_id,))
+        if not cur.fetchone():
+            raise ValueError("Office not found.")
+        cur.execute(
+            "UPDATE offices SET name = %s, description = %s WHERE id = %s",
+            (name, description, office_id),
+        )
+        conn.commit()
+        flash("Office updated.", "success")
+    except ValueError as error:
+        conn.rollback()
+        flash(str(error), "danger")
+    except IntegrityError:
+        conn.rollback()
+        flash("That office already exists.", "danger")
+    finally:
+        cur.close()
+        conn.close()
+    return redirect(url_for("offices"))
+
+
+@app.route("/offices/<int:office_id>/delete", methods=["POST"])
+@admin_required("offices")
+def delete_office(office_id):
+    conn = db()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM offices WHERE id = %s", (office_id,))
+        if cur.rowcount == 0:
+            raise ValueError("Office not found.")
+        conn.commit()
+        flash("Office deleted. Equipment assigned to it is now unassigned from an office.", "success")
+    except ValueError as error:
+        conn.rollback()
+        flash(str(error), "danger")
+    finally:
+        cur.close()
+        conn.close()
+    return redirect(url_for("offices"))
 
 
 # ============================================================
@@ -2262,6 +2561,7 @@ def users():
             u.full_name,
             u.email,
             u.profile_picture,
+            u.feature_permissions,
             u.is_active,
             r.name AS role_name
         FROM users u
@@ -2291,7 +2591,8 @@ def users():
     return render_template(
         "users.html",
         users=rows,
-        roles=roles
+        roles=roles,
+        restrictable_features=RESTRICTABLE_FEATURES
     )
 
 
@@ -2315,7 +2616,7 @@ def add_user():
         password = clean_text(request.form.get("password"), "Password", 255)
         confirm_password = request.form.get("confirm_password", "")
         full_name = clean_text(request.form.get("full_name"), "Full name", 150)
-        email = optional_text(request.form.get("email"), 150)
+        email = optional_email(request.form.get("email"))
         role_id = request.form.get("role_id")
         if len(password) < 8:
             raise ValueError("Password must be at least 8 characters long.")
@@ -2429,7 +2730,7 @@ def profile():
         cur = None
         try:
             full_name = clean_text(request.form.get("full_name"), "Full name", 150)
-            email = optional_text(request.form.get("email"), 150)
+            email = optional_email(request.form.get("email"))
             current_password = request.form.get("current_password", "")
             new_password = request.form.get("new_password", "")
             confirm_password = request.form.get("confirm_password", "")
@@ -2508,7 +2809,7 @@ def update_managed_user(user_id):
     new_picture_path = None
     try:
         full_name = clean_text(request.form.get("full_name"), "Full name", 150)
-        email = optional_text(request.form.get("email"), 150)
+        email = optional_email(request.form.get("email"))
         new_password = request.form.get("new_password", "")
         confirm_password = request.form.get("confirm_password", "")
         if new_password and len(new_password) < 8:
@@ -2630,6 +2931,43 @@ def toggle_user_status(user_id):
     return redirect(url_for("users"))
 
 
+@app.route("/users/<int:user_id>/permissions", methods=["POST"])
+@super_admin_required
+def update_user_permissions(user_id):
+    """Allow only Super Admin to override feature access for managed accounts."""
+    requested = set(request.form.getlist("features"))
+    feature_keys = {key for key, _label in RESTRICTABLE_FEATURES}
+    if not requested.issubset(feature_keys):
+        flash("Invalid feature selection.", "danger")
+        return redirect(url_for("users"))
+
+    conn = db()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT u.id, u.username, r.name AS role_name
+        FROM users u JOIN roles r ON r.id = u.role_id
+        WHERE u.id = %s
+    """, (user_id,))
+    target = cur.fetchone()
+    allowed = {role.lower() for role in manageable_roles(g.current_user["role_name"])}
+    if not target or target["role_name"].strip().lower() not in allowed:
+        cur.close()
+        conn.close()
+        flash("Only Admin and Worker accounts can have feature access changed.", "danger")
+        return redirect(url_for("users"))
+
+    permissions = {key: key in requested for key, _label in RESTRICTABLE_FEATURES}
+    cur.execute(
+        "UPDATE users SET feature_permissions = %s WHERE id = %s",
+        (json.dumps(permissions), user_id),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+    flash(f"Feature access updated for {target['username']}.", "success")
+    return redirect(url_for("users"))
+
+
 # ============================================================
 # RUN
 # ============================================================
@@ -2638,6 +2976,6 @@ if __name__ == "__main__":
 
     app.run(
         debug=app.config["DEBUG"],
-        host="127.0.0.1",
-        port=5000
+        host=os.getenv("APP_HOST", "127.0.0.1"),
+        port=int(os.getenv("APP_PORT", "5000"))
     )

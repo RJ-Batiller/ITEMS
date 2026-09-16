@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div class="catalog-kicker">Inventory structure</div><h1>Offices</h1><p class="text-muted mb-0">Manage the offices used to organize equipment and accountability.</p></div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('offices') }}" class="row g-2">
+            <div class="col-md-10"><label class="visually-hidden" for="office-search">Search offices</label><input class="form-control" id="office-search" name="q" value="{{ q }}" placeholder="Search by office name or description"></div>
+            <div class="col-md-2"><button class="btn btn-outline-primary w-100" type="submit">Search</button></div>
+        </form>
+    </div>
+</div>
+
+{% if user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'offices') %}
+<div class="card shadow-sm mb-3"><div class="card-body">
+    <h2 class="h5 mb-3">Add office</h2>
+    <form method="post" action="{{ url_for('add_office') }}" class="row g-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="col-md-5"><label class="visually-hidden" for="office-name">Office name</label><input class="form-control" id="office-name" name="name" placeholder="Office name" required></div>
+        <div class="col-md-5"><label class="visually-hidden" for="office-description">Description</label><input class="form-control" id="office-description" name="description" placeholder="Description"></div>
+        <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Add office</button></div>
+    </form>
+</div></div>
+{% endif %}
+
+<div class="card shadow-sm"><div class="card-body table-responsive">
+    <table class="table align-middle mb-0"><thead><tr><th>Office</th><th>Description</th><th>Equipment</th>{% if user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'offices') %}<th class="text-end">Controls</th>{% endif %}</tr></thead>
+    <tbody>{% for office in offices %}<tr>
+        <td><strong>{{ office.name }}</strong></td><td>{{ office.description or '-' }}</td><td>{{ office.equipment_count }}</td>
+        {% if user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'offices') %}<td class="text-end">
+            <details class="d-inline-block text-start"><summary class="btn btn-sm btn-outline-warning">Edit</summary><form method="post" action="{{ url_for('edit_office', office_id=office.id) }}" class="mt-2 p-3 border rounded bg-light"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="form-label small" for="office-name-{{ office.id }}">Office name</label><input class="form-control form-control-sm mb-2" id="office-name-{{ office.id }}" name="name" value="{{ office.name }}" required><label class="form-label small" for="office-description-{{ office.id }}">Description</label><input class="form-control form-control-sm mb-2" id="office-description-{{ office.id }}" name="description" value="{{ office.description or '' }}"><button class="btn btn-sm btn-danger w-100" type="submit">Save changes</button></form></details>
+            <form method="post" action="{{ url_for('delete_office', office_id=office.id) }}" class="d-inline-block" onsubmit="return confirm('Delete this office? Equipment will keep its records but lose this office assignment.');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" type="submit">Delete</button></form>
+        </td>{% endif %}
+    </tr>{% else %}<tr><td colspan="4" class="dashboard-empty">No offices match your search.</td></tr>{% endfor %}</tbody></table>
+</div></div>
+{% endblock %}

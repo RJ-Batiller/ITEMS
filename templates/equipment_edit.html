@@ -36,7 +36,7 @@
                 <div class="col-md-6">
 
                     <label class="form-label">
-                        Asset Code
+                        Property Number
                     </label>
 
                     <input
@@ -108,6 +108,7 @@
                     <select
                         name="category_id"
                         class="form-select"
+                        required
                     >
 
                         <option value="">
@@ -141,6 +142,7 @@
                     <select
                         name="office_id"
                         class="form-select"
+                        required
                     >
 
                         <option value="">
@@ -160,6 +162,20 @@
 
                         {% endfor %}
 
+                    </select>
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Item Type
+                    </label>
+
+                    <select name="item_type" class="form-select" required>
+                        <option value="Consumable" {% if equipment.item_type == 'Consumable' %}selected{% endif %}>Consumable</option>
+                        <option value="Non-Consumable" {% if equipment.item_type == 'Non-Consumable' %}selected{% endif %}>Non-Consumable</option>
                     </select>
 
                 </div>
@@ -262,7 +278,7 @@
 
                     <button
                         type="submit"
-                        class="btn btn-primary"
+                        class="btn btn-confirm"
                     >
                         Save Changes
                     </button>
@@ -272,7 +288,7 @@
                             'equipment',
                             item_id=equipment.id
                         ) }}"
-                        class="btn btn-outline-secondary"
+                        class="btn btn-cancel"
                     >
                         Cancel
                     </a>

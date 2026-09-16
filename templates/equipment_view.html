@@ -19,7 +19,7 @@
 
         <a
             href="{{ url_for('equipment') }}"
-            class="btn btn-outline-secondary"
+            class="btn btn-cancel"
         >
             Back
         </a>
@@ -28,7 +28,7 @@
             {% if equipment.status == 'Archived' %}
             <form method="post" action="{{ url_for('restore_equipment', item_id=equipment.id) }}" class="d-inline" onsubmit="return confirm('Restore this archived equipment and mark it available?')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-success">Restore</button>
+                <button type="submit" class="btn btn-confirm">Restore</button>
             </form>
             {% elif equipment.status not in ['Disposed'] %}
             <a
@@ -71,14 +71,14 @@
                     onsubmit="return confirm('Archive this equipment?')"
                 >
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-outline-secondary">Archive</button>
+                    <button type="submit" class="btn btn-cancel">Archive</button>
                 </form>
                 <a
                     href="{{ url_for(
                         'dispose_equipment',
                         item_id=equipment.id
                     ) }}"
-                    class="btn btn-danger"
+                    class="btn btn-confirm-danger"
                 >
                     Dispose
                 </a>
@@ -112,7 +112,7 @@
 
             <div class="col-md-6 mb-3">
 
-                <strong>Asset Code</strong>
+                <strong>Property Number</strong>
 
                 <div>
                     {{ equipment.asset_code }}

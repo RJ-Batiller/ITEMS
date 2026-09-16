@@ -28,9 +28,48 @@
 <div class="card"><div class="card-body table-responsive">
     <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h5 mb-0">Team directory</h2><span class="text-muted small">{{ users|length }} account(s)</span></div>
     <table class="table align-middle mb-0"><thead><tr><th>Profile</th><th>Account</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th>{% if g.current_user.role_name|lower in ['super admin', 'admin'] %}<th class="text-end">Controls</th>{% endif %}</tr></thead><tbody>
-    {% for u in users %}<tr><td>{% if u.profile_picture %}<img class="directory-profile-picture" src="{{ url_for('static', filename='uploads/profiles/' ~ u.profile_picture, v=u.profile_picture) }}" alt="{{ u.full_name }} profile picture">{% else %}<span class="directory-profile-fallback">{{ u.full_name[:1]|upper }}</span>{% endif %}</td><td><strong>{{ u.username }}</strong></td><td>{{ u.full_name }}</td><td>{{ u.email or '-' }}</td><td>{{ u.role_name }}</td><td><span class="status-badge {{ 'status-available' if u.is_active else 'status-archived' }}">{{ 'Active' if u.is_active else 'Inactive' }}</span></td>
-    {% if g.current_user.role_name|lower in ['super admin', 'admin'] %}<td class="text-end">{% if u.role_name|lower in (['admin', 'worker'] if g.current_user.role_name|lower == 'super admin' else ['worker']) %}<details class="d-inline-block text-start"><summary class="btn btn-sm btn-outline-danger">Edit account</summary><form method="post" enctype="multipart/form-data" action="{{ url_for('update_managed_user', user_id=u.id) }}" class="mt-2 p-3 border rounded bg-light"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="form-label small">Full name</label><input class="form-control form-control-sm mb-2" name="full_name" value="{{ u.full_name }}" required><label class="form-label small">Email</label><input class="form-control form-control-sm mb-2" type="email" name="email" value="{{ u.email or '' }}"><label class="form-label small">New profile picture</label><input class="form-control form-control-sm mb-2" type="file" name="profile_picture" accept=".jpg,.jpeg,.png,.gif,.webp"><label class="form-label small">New password <span class="text-muted">(optional)</span></label><input class="form-control form-control-sm mb-2" type="password" name="new_password" minlength="8" autocomplete="new-password"><label class="form-label small">Confirm password</label><input class="form-control form-control-sm mb-2" type="password" name="confirm_password" minlength="8" autocomplete="new-password"><button class="btn btn-sm btn-danger">Save changes</button></form></details><form method="post" action="{{ url_for('toggle_user_status', user_id=u.id) }}" class="d-inline-block"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-secondary">{{ 'Deactivate' if u.is_active else 'Activate' }}</button></form>{% else %}<span class="text-muted small">Protected account</span>{% endif %}</td>{% endif %}</tr>
+    {% for u in users %}<tr><td>{% if u.profile_picture %}<button type="button" class="profile-preview-trigger" data-profile-preview="{{ url_for('static', filename='uploads/profiles/' ~ u.profile_picture, v=u.profile_picture) }}" data-profile-name="{{ u.full_name }}" aria-label="Preview {{ u.full_name }} profile picture"><img class="directory-profile-picture" src="{{ url_for('static', filename='uploads/profiles/' ~ u.profile_picture, v=u.profile_picture) }}" alt="{{ u.full_name }} profile picture"></button>{% else %}<button type="button" class="profile-preview-trigger" data-profile-name="{{ u.full_name }}" data-profile-initial="{{ u.full_name[:1]|upper }}" aria-label="Preview {{ u.full_name }} profile placeholder"><span class="directory-profile-fallback">{{ u.full_name[:1]|upper }}</span></button>{% endif %}</td><td><strong>{{ u.username }}</strong></td><td>{{ u.full_name }}</td><td>{{ u.email or '-' }}</td><td>{{ u.role_name }}</td><td><span class="status-badge {{ 'status-available' if u.is_active else 'status-archived' }}">{{ 'Active' if u.is_active else 'Inactive' }}</span></td>
+    {% if g.current_user.role_name|lower in ['super admin', 'admin'] %}<td class="text-end">{% if u.role_name|lower in (['admin', 'worker'] if g.current_user.role_name|lower == 'super admin' else ['worker']) %}<details class="d-inline-block text-start"><summary class="btn btn-sm btn-outline-danger">Edit account</summary><form method="post" enctype="multipart/form-data" action="{{ url_for('update_managed_user', user_id=u.id) }}" class="mt-2 p-3 border rounded bg-light"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="form-label small">Full name</label><input class="form-control form-control-sm mb-2" name="full_name" value="{{ u.full_name }}" required><label class="form-label small">Email</label><input class="form-control form-control-sm mb-2" type="email" name="email" value="{{ u.email or '' }}"><label class="form-label small">New profile picture</label><input class="form-control form-control-sm mb-2" type="file" name="profile_picture" accept=".jpg,.jpeg,.png,.gif,.webp"><label class="form-label small">New password <span class="text-muted">(optional)</span></label><input class="form-control form-control-sm mb-2" type="password" name="new_password" minlength="8" autocomplete="new-password"><label class="form-label small">Confirm password</label><input class="form-control form-control-sm mb-2" type="password" name="confirm_password" minlength="8" autocomplete="new-password"><button class="btn btn-sm btn-danger">Save changes</button></form></details><form method="post" action="{{ url_for('toggle_user_status', user_id=u.id) }}" class="d-inline-block"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-secondary">{{ 'Deactivate' if u.is_active else 'Activate' }}</button></form>{% if g.current_user.role_name|lower == 'super admin' %}<details class="user-restrictor mt-2"><summary class="btn btn-sm btn-outline-dark">Restrictor</summary><form method="post" action="{{ url_for('update_user_permissions', user_id=u.id) }}" class="user-restrictor-form mt-2 p-3 border rounded bg-light"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><strong class="small d-block mb-2">Allowed features</strong>{% for feature_key, feature_label in restrictable_features %}<label class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="features" value="{{ feature_key }}" {% if user_feature_enabled(u.feature_permissions, u.role_name, feature_key) %}checked{% endif %}> <span class="form-check-label">{{ feature_label }}</span></label>{% endfor %}<button class="btn btn-sm btn-danger w-100 mt-1">Save access</button></form></details>{% endif %}{% else %}<span class="text-muted small">Protected account</span>{% endif %}</td>{% endif %}</tr>
     {% else %}<tr><td colspan="7" class="dashboard-empty">No accounts found.</td></tr>{% endfor %}
     </tbody></table>
 </div></div>
+<div class="profile-preview-modal" id="profile-preview-modal" role="dialog" aria-modal="true" aria-labelledby="profile-preview-title" hidden>
+    <div class="profile-preview-modal-content"><button type="button" class="profile-preview-close" id="profile-preview-close" aria-label="Close preview">&times;</button><h2 class="h5" id="profile-preview-title">Profile picture</h2><img id="profile-preview-image" class="profile-preview-large" src="" alt=""><div id="profile-preview-fallback" class="profile-preview-large profile-preview-fallback" hidden></div></div>
+</div>
+<script>
+var profilePreviewModal = document.getElementById('profile-preview-modal');
+var profilePreviewImage = document.getElementById('profile-preview-image');
+var profilePreviewTitle = document.getElementById('profile-preview-title');
+var profilePreviewFallback = document.getElementById('profile-preview-fallback');
+function closeProfilePreview() {
+    profilePreviewModal.hidden = true;
+    profilePreviewImage.src = '';
+    profilePreviewImage.hidden = false;
+    profilePreviewFallback.hidden = true;
+}
+document.querySelectorAll('[data-profile-preview]').forEach(function (button) {
+    button.addEventListener('click', function () {
+        var imageSource = button.dataset.profilePreview || '';
+        profilePreviewImage.src = imageSource;
+        profilePreviewImage.alt = button.dataset.profileName + ' profile picture';
+        profilePreviewTitle.textContent = button.dataset.profileName;
+        if (imageSource) {
+            profilePreviewImage.hidden = false;
+            profilePreviewFallback.hidden = true;
+        } else {
+            profilePreviewImage.hidden = true;
+            profilePreviewFallback.textContent = button.dataset.profileInitial || '?';
+            profilePreviewFallback.hidden = false;
+        }
+        profilePreviewModal.hidden = false;
+    });
+});
+document.getElementById('profile-preview-close').addEventListener('click', closeProfilePreview);
+profilePreviewModal.addEventListener('click', function (event) {
+    if (event.target === profilePreviewModal) closeProfilePreview();
+});
+document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && !profilePreviewModal.hidden) closeProfilePreview();
+});
+</script>
 {% endblock %}

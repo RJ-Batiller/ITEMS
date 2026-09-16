@@ -122,6 +122,21 @@ Open the application at:
 
 http://127.0.0.1:5000
 
+For a mobile-preview extension on the same computer, open the running Flask URL directly instead of opening an HTML file:
+
+```text
+http://127.0.0.1:5000
+```
+
+For a physical phone or another computer on the same network, set this in `.env`:
+
+```dotenv
+APP_HOST=0.0.0.0
+APP_PORT=5000
+```
+
+Then restart Flask and open `http://<this-PC-IP>:5000` from the device. The PC firewall must allow Python on port `5000`.
+
 Log in with `SUPERADMIN_USERNAME` and `SUPERADMIN_PASSWORD` from `.env`.
 
 ### 8. Run the tests

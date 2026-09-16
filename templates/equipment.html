@@ -2,9 +2,12 @@
 
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-
-    <h2 class="fw-bold mb-4">Equipment</h2>
+<div class="page-heading d-flex justify-content-between align-items-end mb-4 equipment-page-heading">
+    <div>
+        <div class="catalog-kicker">Inventory structure</div>
+        <h1>Equipment</h1>
+        <p class="text-muted mb-0">Browse, organize, and manage the equipment catalog.</p>
+    </div>
 
     <a
         href="{{ url_for('qr_scanner') }}"
@@ -21,11 +24,15 @@
         <div class="equipment-sidebar-heading">Catalog</div>
         <a
             href="{{ url_for('equipment', q=q) }}"
-    class="equipment-category-link {% if not selected_category_name %}is-active{% endif %}"
+    class="equipment-category-link {% if not selected_category_name and not selected_item_type and not selected_status %}is-active{% endif %}"
         >
             <span>All Equipment</span>
             <span class="equipment-category-count">{{ categories | sum(attribute='equipment_count') }}</span>
         </a>
+
+        <div class="equipment-sidebar-heading mt-4">Item Type</div>
+        <a href="{{ url_for('equipment', type='Consumable', q=q) }}" class="equipment-category-link {% if selected_item_type == 'Consumable' %}is-active{% endif %}"><span>Consumables</span><span class="equipment-category-count">{{ item_type_counts.get('Consumable', 0) }}</span></a>
+        <a href="{{ url_for('equipment', type='Non-Consumable', q=q) }}" class="equipment-category-link {% if selected_item_type == 'Non-Consumable' %}is-active{% endif %}"><span>Non-Consumables</span><span class="equipment-category-count">{{ item_type_counts.get('Non-Consumable', 0) }}</span></a>
 
         <div class="equipment-sidebar-heading mt-4">Categories</div>
         {% for c in categories %}
@@ -103,7 +110,7 @@
                 <input
                     class="form-control"
                     name="asset_code"
-                    placeholder="Asset code"
+                    placeholder="Property Number"
                     required
                 >
             </div>
@@ -134,29 +141,27 @@
             </div>
 
             <div class="col-md-3">
-                <select class="form-select" name="category_id">
-                    <option value="">Category</option>
-                    {% for c in categories %}
-                    <option value="{{ c.id }}">{{ c.name }}</option>
-                    {% endfor %}
+                <select class="form-select" name="category_id" required>
+                    <option value="" selected disabled>Category</option>
+                    {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
                 </select>
             </div>
 
             <div class="col-md-3">
-                <select class="form-select" name="office_id">
-                    <option value="">Office</option>
-                    {% for o in offices %}
-                    <option value="{{ o.id }}">{{ o.name }}</option>
-                    {% endfor %}
+                <select class="form-select" name="office_id" required>
+                    <option value="" selected disabled>Office</option>
+                    {% for o in offices %}<option value="{{ o.id }}">{{ o.name }}</option>{% endfor %}
                 </select>
             </div>
 
             <div class="col-md-3">
-                <select class="form-select" name="status">
-                    <option value="Available">Available</option>
-                    <option value="Under Maintenance">Under Maintenance</option>
+                <select class="form-select" name="item_type" required>
+                    <option value="" selected disabled>Item type</option>
+                    <option value="Consumable">Consumable</option>
+                    <option value="Non-Consumable">Non-Consumable</option>
                 </select>
             </div>
+
 
             <div class="col-12">
                 <textarea
@@ -192,8 +197,10 @@
 <div class="d-flex justify-content-between align-items-center mb-2">
     <div>
         <p class="catalog-kicker mb-1">Inventory catalog</p>
-        <h3 class="catalog-title mb-0">
-            {% if selected_category_name %}
+                <h3 class="catalog-title mb-0">
+            {% if selected_item_type %}
+                {{ selected_item_type }}s
+            {% elif selected_category_name %}
                 {{ selected_category_name }}
             {% else %}
                 All Equipment
@@ -219,6 +226,7 @@
     {% if selected_category_id %}
     <input type="hidden" name="category" value="{{ selected_category_id }}">
     {% endif %}
+    {% if selected_item_type %}<input type="hidden" name="type" value="{{ selected_item_type }}">{% endif %}
 
     <button
         type="submit"
@@ -234,7 +242,15 @@
         <div class="row g-2 align-items-end">
             <input type="hidden" name="q" value="{{ q }}">
             {% if selected_category_id %}<input type="hidden" name="category" value="{{ selected_category_id }}">{% endif %}
-            <div class="col-sm-4">
+            <div class="col-sm-3">
+                <label class="form-label small text-muted" for="equipment-type">Item type</label>
+                <select id="equipment-type" class="form-select" name="type">
+                    <option value="">All item types</option>
+                    <option value="Consumable" {% if selected_item_type == 'Consumable' %}selected{% endif %}>Consumables</option>
+                    <option value="Non-Consumable" {% if selected_item_type == 'Non-Consumable' %}selected{% endif %}>Non-Consumables</option>
+                </select>
+            </div>
+            <div class="col-sm-3">
                 <label class="form-label small text-muted" for="equipment-office">Office</label>
                 <select id="equipment-office" class="form-select" name="office">
                     <option value="">All offices</option>
@@ -243,7 +259,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-sm-4">
+            <div class="col-sm-3">
                 <label class="form-label small text-muted" for="equipment-status">Status</label>
                 <select id="equipment-status" class="form-select" name="status">
                     <option value="">All statuses</option>
@@ -252,17 +268,17 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-sm-4 d-flex gap-2">
+            <div class="col-sm-3 d-flex gap-2">
                 <button type="submit" class="btn btn-outline-primary flex-grow-1">Apply filters</button>
-                {% if selected_office_id or selected_status %}<a href="{{ url_for('equipment', category=selected_category_id, q=q) }}" class="btn btn-outline-secondary">Clear</a>{% endif %}
+                {% if selected_item_type or selected_office_id or selected_status %}<a href="{{ url_for('equipment', category=selected_category_id, q=q) }}" class="btn btn-outline-secondary">Clear</a>{% endif %}
             </div>
         </div>
     </div>
 </form>
 
 <div class="d-flex justify-content-end mb-3">
-    <a href="{{ url_for('equipment', q=q, category=selected_category_id, office=selected_office_id, status=selected_status, export='csv') }}" class="btn btn-outline-dark btn-sm">Export inventory CSV</a>
-    <a href="{{ url_for('equipment', q=q, category=selected_category_id, office=selected_office_id, status=selected_status, print='1') }}" class="btn btn-outline-secondary btn-sm ms-2" target="_blank" rel="noopener">Print inventory</a>
+    <a href="{{ url_for('equipment', q=q, category=selected_category_id, type=selected_item_type, office=selected_office_id, status=selected_status, export='csv') }}" class="btn btn-outline-dark btn-sm">Export inventory CSV</a>
+    <a href="{{ url_for('equipment', q=q, category=selected_category_id, type=selected_item_type, office=selected_office_id, status=selected_status, print='1') }}" class="btn btn-outline-secondary btn-sm ms-2" target="_blank" rel="noopener">Print inventory</a>
 </div>
 
 
@@ -280,11 +296,13 @@
 
                 <tr>
 
-                    <th>Asset Code</th>
+                    <th>Property Number</th>
 
                     <th>Equipment</th>
 
                     <th>Category</th>
+
+                    <th>Type</th>
 
                     <th>Office</th>
 
@@ -318,6 +336,10 @@
                     </td>
 
                     <td>
+                        <span class="status-badge status-{{ e.item_type | lower | replace('-', '-') }}">{{ e.item_type }}</span>
+                    </td>
+
+                    <td>
                         {{ e.office_name or '-' }}
                     </td>
 
@@ -334,9 +356,9 @@
                          ACTION BUTTONS
                     ================================================= -->
 
-                    <td>
+                    <td class="equipment-actions-cell">
 
-                        <div class="btn-group" role="group">
+                        <div class="equipment-action-scroll" role="group" aria-label="Equipment actions">
 
 
                             <!-- VIEW

@@ -37,7 +37,7 @@
                 </div>
 
                 <div class="col-md-4 mb-3">
-                    <label class="text-muted">Asset Code</label>
+                    <label class="text-muted">Property Number</label>
                     <div class="fw-bold">
                         {{ equipment.asset_code or 'N/A' }}
                     </div>
@@ -206,7 +206,7 @@
 
                     <button
                         type="submit"
-                        class="btn btn-primary"
+                        class="btn btn-confirm"
                         onclick="return confirm('Assign this equipment to the selected accountable person?')"
                     >
                         Assign Equipment
@@ -214,7 +214,7 @@
 
                     <a
                         href="{{ url_for('equipment') }}"
-                        class="btn btn-secondary"
+                        class="btn btn-cancel"
                     >
                         Cancel
                     </a>

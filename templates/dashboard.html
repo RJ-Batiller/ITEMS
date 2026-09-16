@@ -1,94 +1,49 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="dashboard-heading">
+<section class="dashboard-hero">
     <div>
-        <p class="catalog-kicker mb-1">Operations console</p>
-        <h2 class="fw-bold mb-1">Dashboard</h2>
-        <p class="text-muted mb-0">A current view of your equipment inventory and recent activity.</p>
+        <p class="catalog-kicker mb-2">Operations intelligence / live overview</p>
+        <h1 class="dashboard-hero-title">Inventory command center</h1>
+        <p class="text-muted mb-0">A real-time pulse of equipment, accountability, maintenance, and system activity.</p>
     </div>
-    <div class="dashboard-actions">
-        <a href="{{ url_for('equipment') }}" class="btn btn-primary">Browse equipment</a>
-        <a href="{{ url_for('transactions') }}" class="btn btn-outline-dark">View activity</a>
+    <div class="dashboard-hero-actions">
+        <span class="dashboard-live-indicator"><span></span> Live data</span>
+        <a href="{{ url_for('equipment') }}" class="btn btn-primary">Open catalog</a>
+        <a href="{{ url_for('transactions') }}" class="btn btn-outline-dark">Audit trail</a>
     </div>
+</section>
+
+<div class="dashboard-metric-grid">
+    <div class="card dashboard-metric dashboard-metric-primary"><div class="card-body"><span class="dashboard-metric-eyebrow">Active inventory</span><strong>{{ total }}</strong><span class="dashboard-metric-note">Items in circulation</span><span class="dashboard-metric-symbol">01</span></div></div>
+    <div class="card dashboard-metric dashboard-metric-ready"><div class="card-body"><span class="dashboard-metric-eyebrow">Ready now</span><strong>{{ available }}</strong><span class="dashboard-metric-note">Available for assignment</span><span class="dashboard-metric-symbol">02</span></div></div>
+    <div class="card dashboard-metric dashboard-metric-assigned"><div class="card-body"><span class="dashboard-metric-eyebrow">Accountable</span><strong>{{ assigned }}</strong><span class="dashboard-metric-note">Currently assigned</span><span class="dashboard-metric-symbol">03</span></div></div>
+    <div class="card dashboard-metric dashboard-metric-alert"><div class="card-body"><span class="dashboard-metric-eyebrow">Attention queue</span><strong>{{ maintenance }}</strong><span class="dashboard-metric-note">Under maintenance</span><span class="dashboard-metric-symbol">04</span></div></div>
 </div>
 
-<div class="row g-3 dashboard-stats">
-    <div class="col-sm-6 col-xl-3"><div class="card card-stat dashboard-stat shadow-sm"><div class="card-body"><span class="dashboard-stat-label">Active equipment</span><strong>{{ total }}</strong><small>In circulation</small></div></div></div>
-    <div class="col-sm-6 col-xl-3"><div class="card card-stat dashboard-stat dashboard-stat-available shadow-sm"><div class="card-body"><span class="dashboard-stat-label">Available</span><strong>{{ available }}</strong><small>Ready for assignment</small></div></div></div>
-    <div class="col-sm-6 col-xl-3"><div class="card card-stat dashboard-stat dashboard-stat-assigned shadow-sm"><div class="card-body"><span class="dashboard-stat-label">Assigned</span><strong>{{ assigned }}</strong><small>Currently accountable</small></div></div></div>
-    <div class="col-sm-6 col-xl-3"><div class="card card-stat dashboard-stat dashboard-stat-attention shadow-sm"><div class="card-body"><span class="dashboard-stat-label">Needs attention</span><strong>{{ maintenance }}</strong><small>Under maintenance</small></div></div></div>
+<div class="dashboard-insight-grid">
+    <section class="card dashboard-panel dashboard-health-panel"><div class="card-body">
+        <div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Inventory health</p><h2>Operational readiness</h2></div><span class="dashboard-radar-mark">SYS</span></div>
+        <div class="dashboard-readiness"><div class="dashboard-readiness-ring" style="--readiness: {{ ready_rate }}%;"><span>{{ ready_rate }}<small>%</small></span></div><div><strong>Ready or accountable</strong><p class="text-muted mb-0">{{ available + assigned }} active items are ready for use or currently assigned.</p></div></div>
+        <div class="dashboard-health-lines"><div><span>Utilization</span><strong>{{ utilization_rate }}%</strong><div class="dashboard-progress"><i style="width: {{ utilization_rate }}%"></i></div></div><div><span>Available</span><strong>{{ available }}</strong><div class="dashboard-progress dashboard-progress-red"><i style="width: {{ (available / total * 100)|round|int if total else 0 }}%"></i></div></div></div>
+        <div class="dashboard-status-strip"><span><i class="status-dot dot-maintenance"></i>{{ maintenance }} maintenance</span><span><i class="status-dot dot-archived"></i>{{ archived }} archived</span><span><i class="status-dot dot-disposed"></i>{{ disposed }} disposed</span></div>
+    </div></section>
+
+    <section class="card dashboard-panel"><div class="card-body">
+        <div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Last 30 days</p><h2>Activity signal</h2></div><strong class="dashboard-period-total">{{ activity_30d }}<small> events</small></strong></div>
+        <div class="dashboard-bars">{% for item in activity_breakdown %}<div class="dashboard-bar-row"><div><span>{{ item.action }}</span><strong>{{ item.action_count }}</strong></div><div class="dashboard-bar-track"><i style="width: {{ (item.action_count / activity_max * 100)|round|int if activity_max else 0 }}%"></i></div></div>{% else %}<div class="dashboard-empty">No activity in the last 30 days.</div>{% endfor %}</div>
+        <a class="dashboard-panel-link" href="{{ url_for('transactions') }}">Explore transaction history <span>-></span></a>
+    </div></section>
+</div>
+
+<div class="dashboard-distribution-grid">
+    <section class="card dashboard-panel"><div class="card-body"><div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Catalog topology</p><h2>Equipment by category</h2></div><a class="dashboard-panel-link-inline" href="{{ url_for('categories') }}">Manage</a></div><div class="dashboard-ranking-list">{% for item in category_breakdown %}<div class="dashboard-ranking-row"><div><span>{{ item.name }}</span><strong>{{ item.equipment_count }}</strong></div><div class="dashboard-ranking-track"><i style="width: {{ (item.equipment_count / category_max * 100)|round|int if category_max else 0 }}%"></i></div></div>{% else %}<div class="dashboard-empty">No categories yet.</div>{% endfor %}</div></div></section>
+    <section class="card dashboard-panel"><div class="card-body"><div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Accountability map</p><h2>Equipment by office</h2></div><a class="dashboard-panel-link-inline" href="{{ url_for('offices') }}">Manage</a></div><div class="dashboard-ranking-list">{% for item in office_breakdown %}<div class="dashboard-ranking-row"><div><span>{{ item.name }}</span><strong>{{ item.equipment_count }}</strong></div><div class="dashboard-ranking-track dashboard-ranking-track-blue"><i style="width: {{ (item.equipment_count / office_max * 100)|round|int if office_max else 0 }}%"></i></div></div>{% else %}<div class="dashboard-empty">No offices yet.</div>{% endfor %}</div></div></section>
 </div>
 
 <div class="row g-4 mt-1">
-    <div class="col-lg-8">
-        <div class="card table-card shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                        <p class="catalog-kicker mb-1">Audit trail</p>
-                        <h5 class="mb-0">Recent activity</h5>
-                    </div>
-                    <a href="{{ url_for('transactions') }}" class="small text-decoration-none">See all</a>
-                </div>
-                <div class="dashboard-activity">
-                {% for transaction in recent_transactions %}
-                    <a class="dashboard-activity-row" href="{{ url_for('view_equipment', item_id=transaction.equipment_id) }}">
-                        <span class="dashboard-activity-marker"></span>
-                        <span class="dashboard-activity-main">
-                            <strong>{{ transaction.action }}</strong>
-                            <span>{{ transaction.equipment_name }} <em>{{ transaction.asset_code }}</em></span>
-                        </span>
-                        <span class="dashboard-activity-meta">{{ transaction.full_name }}<br><small>{{ transaction.created_at }}</small></span>
-                    </a>
-                {% else %}
-                    <div class="dashboard-empty">No activity has been recorded yet.</div>
-                {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-4">
-        <div class="card table-card shadow-sm h-100">
-            <div class="card-body">
-                <p class="catalog-kicker mb-1">Inventory health</p>
-                <h5 class="mb-3">Status overview</h5>
-                <div class="status-overview-row"><span class="status-badge status-under-maintenance">Under maintenance</span><strong>{{ maintenance }}</strong></div>
-                <div class="status-overview-row"><span class="status-badge status-archived">Archived</span><strong>{{ archived }}</strong></div>
-                <div class="status-overview-row"><span class="status-badge status-disposed">Disposed</span><strong>{{ disposed }}</strong></div>
-                <hr>
-                <p class="text-muted small mb-3">Use the equipment catalog to review, assign, or update an item.</p>
-                <a href="{{ url_for('equipment') }}" class="btn btn-outline-primary w-100">Open catalog</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="card table-card shadow-sm mt-4">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <p class="catalog-kicker mb-1">Service queue</p>
-                <h5 class="mb-0">Open maintenance</h5>
-            </div>
-            <span class="badge text-bg-warning">{{ open_maintenance | length }} open</span>
-        </div>
-        <div class="dashboard-maintenance-list">
-        {% for item in open_maintenance %}
-            <a class="dashboard-maintenance-row" href="{{ url_for('equipment_maintenance', item_id=item.equipment_id) }}">
-                <span>
-                    <strong>{{ item.equipment_name }}</strong>
-                    <small>{{ item.asset_code }} · Started {{ item.started_at }}</small>
-                </span>
-                <span class="dashboard-maintenance-remarks">{{ item.remarks }}</span>
-                <span class="small text-danger">Manage</span>
-            </a>
-        {% else %}
-            <div class="dashboard-empty">No equipment is currently in maintenance.</div>
-        {% endfor %}
-        </div>
-    </div>
+    <div class="col-lg-7"><section class="card dashboard-panel h-100"><div class="card-body"><div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Audit trail</p><h2>Recent activity</h2></div><a class="dashboard-panel-link-inline" href="{{ url_for('transactions') }}">See all</a></div><div class="dashboard-activity">{% for transaction in recent_transactions %}<a class="dashboard-activity-row" href="{{ url_for('view_equipment', item_id=transaction.equipment_id) }}"><span class="dashboard-activity-marker"></span><span class="dashboard-activity-main"><strong>{{ transaction.action }}</strong><span>{{ transaction.equipment_name }} <em>{{ transaction.asset_code }}</em></span></span><span class="dashboard-activity-meta">{{ transaction.full_name }}<br><small>{{ transaction.created_at }}</small></span></a>{% else %}<div class="dashboard-empty">No activity has been recorded yet.</div>{% endfor %}</div></div></section></div>
+    <div class="col-lg-5"><section class="card dashboard-panel h-100 dashboard-maintenance-panel"><div class="card-body"><div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Service queue</p><h2>Maintenance control</h2></div><span class="dashboard-queue-badge">{{ open_maintenance|length }} open</span></div><div class="dashboard-maintenance-summary"><strong>{{ completed_maintenance_30d }}</strong><span>completed in the last 30 days</span></div><div class="dashboard-maintenance-list">{% for item in open_maintenance %}<a class="dashboard-maintenance-row" href="{{ url_for('equipment_maintenance', item_id=item.equipment_id) }}"><span><strong>{{ item.equipment_name }}</strong><small>{{ item.asset_code }} | Started {{ item.started_at }}</small></span><span class="dashboard-maintenance-remarks">{{ item.remarks }}</span><span class="small text-danger">Manage</span></a>{% else %}<div class="dashboard-empty">No equipment is currently in maintenance.</div>{% endfor %}</div></div></section></div>
 </div>
 
 {% endblock %}

@@ -10,9 +10,8 @@
 <body class="app-shell">
 <div class="app-layout">
 <aside class="sidebar">
-<div class="sidebar-label">I.T.E.M.S.</div>
 <div class="sidebar-user">
-{% if g.current_user.profile_picture %}<img class="sidebar-user-avatar sidebar-user-photo" src="{{ url_for('static', filename='uploads/profiles/' ~ g.current_user.profile_picture, v=g.current_user.profile_picture) }}" alt="Profile picture">{% else %}<div class="sidebar-user-avatar">{{ session.get('full_name', 'U')[:1]|upper }}</div>{% endif %}
+{% if g.current_user.profile_picture %}<button type="button" class="sidebar-profile-link sidebar-profile-trigger" data-sidebar-profile-preview="{{ url_for('static', filename='uploads/profiles/' ~ g.current_user.profile_picture, v=g.current_user.profile_picture) }}" data-sidebar-profile-name="{{ session.get('full_name', '') }}" aria-label="Preview profile picture" title="Preview profile picture"><img class="sidebar-user-avatar sidebar-user-photo" src="{{ url_for('static', filename='uploads/profiles/' ~ g.current_user.profile_picture, v=g.current_user.profile_picture) }}" alt="Profile picture"></button>{% else %}<a class="sidebar-profile-link" href="{{ url_for('profile') }}" aria-label="Open My Profile" title="Open My Profile"><div class="sidebar-user-avatar">{{ session.get('full_name', 'U')[:1]|upper }}</div></a>{% endif %}
 <div class="sidebar-user-info">
 <strong>{{ session.get('full_name','') }}</strong>
 <span class="sidebar-user-role">{{ session.get('role','') }}</span>
@@ -22,6 +21,7 @@
 <a class="{{ 'is-active' if request.endpoint in ['equipment', 'equipment_view', 'equipment_add', 'equipment_edit', 'equipment_assign', 'equipment_maintenance', 'equipment_dispose', 'equipment_archive', 'equipment_transactions'] else '' }}" href="{{ url_for('equipment') }}">Equipment</a>
 <a class="{{ 'is-active' if request.endpoint == 'qr_scanner' else '' }}" href="{{ url_for('qr_scanner') }}">QR Scanner</a>
 <a class="{{ 'is-active' if request.endpoint == 'categories' else '' }}" href="{{ url_for('categories') }}">Categories</a>
+<a class="{{ 'is-active' if request.endpoint == 'offices' else '' }}" href="{{ url_for('offices') }}">Offices</a>
 <a class="{{ 'is-active' if request.endpoint == 'transactions' else '' }}" href="{{ url_for('transactions') }}">Transactions</a>
 {% if session.get('role') in ['Super Admin', 'Admin'] %}<a class="{{ 'is-active' if request.endpoint == 'users' else '' }}" href="{{ url_for('users') }}">Users</a>{% endif %}
 <a class="{{ 'is-active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">My Profile</a>
@@ -36,5 +36,35 @@
 {% block content %}{% endblock %}
 </main>
 </div>
+<div class="profile-preview-modal" id="sidebar-profile-preview-modal" role="dialog" aria-modal="true" aria-labelledby="sidebar-profile-preview-title" hidden>
+    <div class="profile-preview-modal-content"><button type="button" class="profile-preview-close" id="sidebar-profile-preview-close" aria-label="Close preview">&times;</button><h2 class="h5" id="sidebar-profile-preview-title">Profile picture</h2><img id="sidebar-profile-preview-image" class="profile-preview-large" src="" alt=""></div>
+</div>
+{% block scripts %}{% endblock %}
+<script>
+(function () {
+    var trigger = document.querySelector('[data-sidebar-profile-preview]');
+    var modal = document.getElementById('sidebar-profile-preview-modal');
+    if (!trigger || !modal) return;
+    var image = document.getElementById('sidebar-profile-preview-image');
+    var title = document.getElementById('sidebar-profile-preview-title');
+    function closePreview() {
+        modal.hidden = true;
+        image.src = '';
+    }
+    trigger.addEventListener('click', function () {
+        image.src = trigger.dataset.sidebarProfilePreview;
+        image.alt = trigger.dataset.sidebarProfileName + ' profile picture';
+        title.textContent = trigger.dataset.sidebarProfileName;
+        modal.hidden = false;
+    });
+    document.getElementById('sidebar-profile-preview-close').addEventListener('click', closePreview);
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) closePreview();
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !modal.hidden) closePreview();
+    });
+}());
+</script>
 </body>
 </html>

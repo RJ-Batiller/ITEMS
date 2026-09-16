@@ -7,7 +7,7 @@
             <h2 class="mb-1">Dispose Equipment</h2>
             <p class="text-muted mb-0">Record the disposal details for this equipment.</p>
         </div>
-        <a href="{{ url_for('view_equipment', item_id=equipment.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        <a href="{{ url_for('view_equipment', item_id=equipment.id) }}" class="btn btn-cancel">Cancel</a>
     </div>
 
     <div class="card shadow-sm">
@@ -15,7 +15,7 @@
             <dl class="row mb-4">
                 <dt class="col-sm-3">Equipment</dt>
                 <dd class="col-sm-9">{{ equipment.name }}</dd>
-                <dt class="col-sm-3">Asset Code</dt>
+                <dt class="col-sm-3">Property Number</dt>
                 <dd class="col-sm-9">{{ equipment.asset_code }}</dd>
                 <dt class="col-sm-3">Current Status</dt>
                 <dd class="col-sm-9"><span class="status-badge status-{{ equipment.status | lower | replace(' ', '-') }}">{{ equipment.status }}</span></dd>
@@ -35,7 +35,7 @@
                     <label for="reference_no" class="form-label">Reference Number <span class="text-muted">(optional)</span></label>
                     <input id="reference_no" name="reference_no" type="text" class="form-control">
                 </div>
-                <button type="submit" class="btn btn-danger" onclick="return confirm('Dispose this equipment permanently?')">Record Disposal</button>
+                <button type="submit" class="btn btn-confirm-danger" onclick="return confirm('Dispose this equipment permanently?')">Record Disposal</button>
             </form>
         </div>
     </div>
