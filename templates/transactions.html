@@ -8,12 +8,10 @@
         <h2 class="fw-bold mb-1">Transaction History</h2>
         <p class="text-muted mb-0">Review and export every recorded inventory action.</p>
     </div>
-    <a
-        href="{{ url_for('transactions', q=q, action=action, date_from=date_from, date_to=date_to, export='csv') }}"
-        class="btn btn-outline-dark"
-    >
-        Export CSV
-    </a>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('organization_history') }}" class="btn btn-outline-secondary">Organization history</a>
+        <a href="{{ url_for('transactions', q=q, action=action, date_from=date_from, date_to=date_to, export='csv') }}" class="btn btn-outline-dark">Export CSV</a>
+    </div>
 </div>
 
 <form

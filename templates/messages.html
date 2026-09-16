@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div class="catalog-kicker">Secure internal communications</div><h1>Messages</h1><p class="text-muted mb-0">Share updates, photos, and work files with authorized team members.</p></div>
+
+<div class="messenger-shell">
+    <aside class="messenger-groups card">
+        <div class="card-body">
+            <div class="messenger-section-heading"><span>Channels</span><strong>{{ groups|length }}</strong></div>
+            <div class="messenger-group-list">
+                {% for group in groups %}<a class="messenger-group-link {% if selected_group and selected_group.id == group.id %}is-active{% endif %}" href="{{ url_for('messages', group=group.id) }}"><span class="messenger-group-icon">#</span><span><strong>{{ group.name }}</strong><small>{{ group.member_count }} member{% if group.member_count != 1 %}s{% endif %}</small></span></a>{% else %}<div class="messenger-empty">No groups yet.</div>{% endfor %}
+            </div>
+            {% if can_manage_groups %}<details class="messenger-create-group mt-4"><summary class="btn btn-outline-primary w-100">Create group</summary><form method="post" action="{{ url_for('create_chat_group') }}" class="mt-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="form-label small" for="group-name">Group name</label><input class="form-control mb-3" id="group-name" name="name" maxlength="120" required><label class="form-label small" for="group-members">Add members</label><select class="form-select mb-3" id="group-members" name="member_ids" multiple size="5">{% for member in members %}<option value="{{ member.id }}" {% if member.id == g.current_user.id %}selected{% endif %}>{{ member.full_name }} ({{ member.role_name }})</option>{% endfor %}</select><div class="form-text mb-3">Hold Ctrl while selecting multiple users.</div><button class="btn btn-primary w-100" type="submit">Create secure group</button></form></details>{% endif %}
+        </div>
+    </aside>
+
+    <section class="messenger-conversation card">
+        {% if selected_group %}
+        <div class="card-body messenger-conversation-body">
+            <header class="messenger-header"><div><p class="catalog-kicker mb-1">Authorized channel</p><h2>{{ selected_group.name }}</h2></div><div class="messenger-header-actions"><span class="messenger-live"><i></i> Live</span>{% if can_manage_groups %}<details class="messenger-add-member"><summary class="btn btn-sm btn-outline-primary">Add member</summary><form method="post" action="{{ url_for('add_chat_group_member', group_id=selected_group.id) }}" class="messenger-add-member-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="form-label small" for="add-member">Active account</label><select class="form-select form-select-sm" id="add-member" name="user_id" required><option value="">Choose a member</option>{% for member in members if member.id not in group_member_ids %}<option value="{{ member.id }}">{{ member.full_name }} ({{ member.role_name }})</option>{% else %}<option value="" disabled>Everyone is already included</option>{% endfor %}</select><button class="btn btn-sm btn-primary w-100 mt-2" type="submit">Add to group</button></form></details><form method="post" action="{{ url_for('delete_chat_group', group_id=selected_group.id) }}" onsubmit="return confirm('Delete this entire group and its messages?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" type="submit">Delete group</button></form>{% endif %}</div></header>
+            <div class="messenger-messages" id="message-list" aria-live="polite">
+                {% for message in selected_messages %}<article class="messenger-message {% if message.sender_id == g.current_user.id %}is-own{% endif %}" data-message-id="{{ message.id }}"><div class="messenger-avatar">{{ message.sender_name[:1]|upper }}</div><div class="messenger-message-content"><div class="messenger-message-meta"><strong>{{ message.sender_name }}</strong><time>{{ message.created_at }}</time></div>{% if message.reply_to_id %}<div class="messenger-reply-context"><strong>Reply to {{ message.reply_sender_name or 'original message' }}</strong><span>{{ message.reply_message or 'Message unavailable' }}</span></div>{% endif %}{% if message.is_deleted %}<p class="messenger-deleted">Message deleted</p>{% else %}{% if message.message %}<p>{{ message.message }}</p>{% endif %}{% if message.attachments %}<div class="messenger-attachments">{% for attachment in message.attachments %}<a href="{{ attachment.url }}" class="messenger-attachment" target="_blank" rel="noopener">{{ attachment.name }}<small>{{ (attachment.size / 1024)|round|int }} KB</small></a>{% endfor %}</div>{% endif %}<div class="messenger-message-controls"><button type="button" class="message-reply-button" data-reply-id="{{ message.id }}" data-reply-sender="{{ message.sender_name }}" data-reply-text="{{ message.message or 'Attachment' }}">Reply</button>{% if message.sender_id == g.current_user.id or (can_manage_groups and (message.sender_role_name|lower != 'super admin' or g.current_user.role_name|lower == 'super admin')) %}{% if message.message %}<details><summary>Edit</summary><form method="post" action="{{ url_for('edit_chat_message', message_id=message.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><textarea name="message" rows="2" maxlength="4000" required>{{ message.message }}</textarea><button class="btn btn-sm btn-primary" type="submit">Save</button></form></details>{% endif %}<form method="post" action="{{ url_for('delete_chat_message', message_id=message.id) }}" onsubmit="return confirm('Delete this message?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="message-delete-button" type="submit">Delete</button></form>{% endif %}</div>{% endif %}</div></article>{% else %}<div class="messenger-empty" id="message-empty">No messages yet. Start the conversation.</div>{% endfor %}
+            </div>
+            <form class="messenger-composer" method="post" enctype="multipart/form-data" action="{{ url_for('send_chat_message', group_id=selected_group.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="reply_to_id" id="reply-to-id" value=""><div class="messenger-reply-preview" id="reply-preview" hidden><span>Replying to <strong id="reply-preview-name"></strong><em id="reply-preview-text"></em></span><button type="button" id="clear-reply" aria-label="Clear reply">&times;</button></div><textarea name="message" rows="2" maxlength="4000" placeholder="Write a message..." aria-label="Message"></textarea><div class="messenger-composer-footer"><label class="messenger-file-label" for="message-files">Attach files or photos</label><input id="message-files" type="file" name="attachments" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"><button class="btn btn-primary" type="submit">Send message</button></div></form>
+        </div>
+        {% else %}<div class="card-body messenger-no-channel"><div class="messenger-no-channel-mark">+</div><h2>Start a secure conversation</h2><p class="text-muted">Select a group to view messages.{% if can_manage_groups %} Create a group to begin.{% endif %}</p></div>{% endif %}
+    </section>
+</div>
+
+{% if selected_group %}<script>
+(function () {
+    var list = document.getElementById("message-list");
+    var groupId = {{ selected_group.id }};
+    var currentUserId = {{ g.current_user.id }};
+    var replyIdInput = document.getElementById("reply-to-id");
+    var replyPreview = document.getElementById("reply-preview");
+    var replyPreviewName = document.getElementById("reply-preview-name");
+    var replyPreviewText = document.getElementById("reply-preview-text");
+    var lastId = Array.from(list.querySelectorAll("[data-message-id]")).reduce(function (max, element) { return Math.max(max, Number(element.dataset.messageId)); }, 0);
+    function escapeHtml(value) { return String(value == null ? "" : value).replace(/[&<>'"]/g, function (character) { return {"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;","\"":"&quot;"}[character]; }); }
+    function addMessages(messages) {
+        var empty = document.getElementById("message-empty");
+        if (messages.length && empty) empty.remove();
+        messages.forEach(function (message) {
+            if (document.querySelector('[data-message-id="' + message.id + '"]')) return;
+            var attachments = (message.attachments || []).map(function (file) { return '<a href="' + escapeHtml(file.url) + '" class="messenger-attachment" target="_blank" rel="noopener">' + escapeHtml(file.name) + '<small>' + Math.round(file.size / 1024) + ' KB</small></a>'; }).join("");
+            var article = document.createElement("article");
+            article.className = "messenger-message" + (message.sender_id === currentUserId ? " is-own" : "");
+            article.dataset.messageId = message.id;
+            var replyButton = '<div class="messenger-message-controls"><button type="button" class="message-reply-button" data-reply-id="' + message.id + '" data-reply-sender="' + escapeHtml(message.sender_name) + '" data-reply-text="' + escapeHtml(message.message || 'Attachment') + '">Reply</button></div>';
+            article.innerHTML = '<div class="messenger-avatar">' + escapeHtml(message.sender_name.slice(0, 1).toUpperCase()) + '</div><div class="messenger-message-content"><div class="messenger-message-meta"><strong>' + escapeHtml(message.sender_name) + '</strong><time>' + escapeHtml(message.created_at) + '</time></div>' + (message.message ? '<p>' + escapeHtml(message.message) + '</p>' : '') + (attachments ? '<div class="messenger-attachments">' + attachments + '</div>' : '') + (message.is_deleted ? '<p class="messenger-deleted">Message deleted</p>' : replyButton) + '</div>';
+            list.appendChild(article); lastId = Math.max(lastId, Number(message.id)); list.scrollTop = list.scrollHeight;
+        });
+    }
+    function chooseReply(button) {
+        replyIdInput.value = button.dataset.replyId;
+        replyPreviewName.textContent = button.dataset.replySender;
+        replyPreviewText.textContent = button.dataset.replyText;
+        replyPreview.hidden = false;
+        document.querySelector('.messenger-composer textarea').focus();
+    }
+    document.addEventListener("click", function (event) {
+        var button = event.target.closest(".message-reply-button");
+        if (button) chooseReply(button);
+        if (event.target.id === "clear-reply") {
+            replyIdInput.value = "";
+            replyPreview.hidden = true;
+        }
+    });
+    function poll() { fetch("{{ url_for('api_chat_messages', group_id=selected_group.id) }}?after=" + lastId, {headers: {"Accept": "application/json"}}).then(function (response) { return response.ok ? response.json() : null; }).then(function (data) { if (data) addMessages(data.messages || []); }).catch(function () {}); }
+    list.scrollTop = list.scrollHeight;
+    window.setInterval(poll, 3000);
+}());
+</script>{% endif %}
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-end mb-4 transaction-heading">
+    <div>
+        <p class="catalog-kicker mb-1">Organization audit trail</p>
+        <h2 class="fw-bold mb-1">Organization History</h2>
+        <p class="text-muted mb-0">Review changes made to categories, offices, and user accounts.</p>
+    </div>
+    <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary">Equipment transactions</a>
+</div>
+<form class="card shadow-sm mb-4" method="get" action="{{ url_for('organization_history') }}">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-lg-6">
+                <label class="form-label small text-muted" for="organization-history-search">Search history</label>
+                <input class="form-control" id="organization-history-search" name="q" value="{{ q }}" placeholder="Search name, details, or user">
+            </div>
+            <div class="col-sm-4 col-lg-2">
+                <label class="form-label small text-muted" for="organization-history-type">Type</label>
+                <select class="form-select" id="organization-history-type" name="entity_type">
+                    <option value="">All types</option>
+                    {% for option in ['Account', 'Category', 'Office'] %}<option value="{{ option }}" {% if entity_type == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-4 col-lg-2">
+                <label class="form-label small text-muted" for="organization-history-action">Action</label>
+                <select class="form-select" id="organization-history-action" name="action">
+                    <option value="">All actions</option>
+                    {% for option in ['Created', 'Updated', 'Deleted'] %}<option value="{{ option }}" {% if action == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-4 col-lg-2 d-grid"><button class="btn btn-primary" type="submit">Filter</button></div>
+        </div>
+        {% if q or entity_type or action %}<div class="mt-2"><a class="small text-decoration-none" href="{{ url_for('organization_history') }}">Clear filters</a></div>{% endif %}
+    </div>
+</form>
+<div class="card shadow-sm">
+    <div class="card-body table-responsive">
+        <div class="small text-muted mb-2">{{ history|length }} record{% if history|length != 1 %}s{% endif %} shown</div>
+        <table class="table align-middle mb-0">
+            <thead><tr><th>Date</th><th>Type</th><th>Name</th><th>Action</th><th>Details</th><th>Changed by</th></tr></thead>
+            <tbody>
+            {% for entry in history %}
+            <tr>
+                <td>{{ entry.created_at.strftime('%Y-%m-%d %H:%M') if entry.created_at else '-' }}</td>
+                <td>{{ entry.entity_type }}</td>
+                <td><strong>{{ entry.entity_name }}</strong></td>
+                <td><span class="badge transaction-badge transaction-{{ entry.action|lower }}">{{ entry.action }}</span></td>
+                <td>{{ entry.details or '-' }}</td>
+                <td>{{ entry.full_name }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="dashboard-empty">No organization history has been recorded yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
