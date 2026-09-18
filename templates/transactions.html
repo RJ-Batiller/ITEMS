@@ -52,6 +52,7 @@
                 <button type="submit" class="btn btn-primary">Filter</button>
             </div>
         </div>
+        {% if q or action or date_from or date_to %}<div class="mt-2"><a class="small text-decoration-none" href="{{ url_for('transactions') }}">Clear filters</a></div>{% endif %}
     </div>
 </form>
 
@@ -61,9 +62,6 @@
 
         <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="small text-muted">{{ transactions | length }} record{% if transactions | length != 1 %}s{% endif %} shown</span>
-            {% if q or action or date_from or date_to %}
-            <a class="small text-decoration-none" href="{{ url_for('transactions') }}">Clear filters</a>
-            {% endif %}
         </div>
 
         <table class="table align-middle">

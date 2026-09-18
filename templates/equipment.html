@@ -270,7 +270,7 @@
             </div>
             <div class="col-sm-3 d-flex gap-2">
                 <button type="submit" class="btn btn-outline-primary flex-grow-1">Apply filters</button>
-                {% if selected_item_type or selected_office_id or selected_status %}<a href="{{ url_for('equipment', category=selected_category_id, q=q) }}" class="btn btn-outline-secondary">Clear</a>{% endif %}
+                {% if q or selected_category_id or selected_item_type or selected_office_id or selected_status %}<a href="{{ url_for('equipment') }}" class="btn btn-outline-secondary">Clear filters</a>{% endif %}
             </div>
         </div>
     </div>

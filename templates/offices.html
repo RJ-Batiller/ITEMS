@@ -8,6 +8,7 @@
             <div class="col-md-10"><label class="visually-hidden" for="office-search">Search offices</label><input class="form-control" id="office-search" name="q" value="{{ q }}" placeholder="Search by office name or description"></div>
             <div class="col-md-2"><button class="btn btn-outline-primary w-100" type="submit">Search</button></div>
         </form>
+        {% if q %}<div class="mt-2"><a class="small text-decoration-none" href="{{ url_for('offices') }}">Clear filters</a></div>{% endif %}
     </div>
 </div>
 

@@ -110,7 +110,7 @@ Use the project virtual-environment interpreter so the correct dependencies are 
 .venv\Scripts\python.exe seed_superadmin.py
 ```
 
-The migration command adds any newer schema changes, including profile-picture support. The seed command creates or updates the Super Admin account using the values in `.env`.
+The current `database.sql` is a complete schema snapshot and already marks migrations `001` through `009` as included. Running `migrate.py` is still safe: it will report that the database is up to date. The seed command creates or updates the Super Admin account using the values in `.env`.
 
 ### 7. Start Flask
 
@@ -138,6 +138,18 @@ APP_PORT=5000
 Then restart Flask and open `http://<this-PC-IP>:5000` from the device. The PC firewall must allow Python on port `5000`.
 
 Log in with `SUPERADMIN_USERNAME` and `SUPERADMIN_PASSWORD` from `.env`.
+
+### Quick start after setup
+
+With MySQL running and `.env` configured, use these commands from the project root:
+
+```powershell
+.venv\Scripts\python.exe migrate.py
+.venv\Scripts\python.exe seed_superadmin.py
+.venv\Scripts\python.exe app.py
+```
+
+Keep the Flask command running, then open `http://127.0.0.1:5000` in your browser.
 
 ### 8. Run the tests
 

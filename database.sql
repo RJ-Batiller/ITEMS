@@ -25,6 +25,7 @@ CREATE TABLE users (
     full_name VARCHAR(150) NOT NULL,
     email VARCHAR(150),
     role_id INT NOT NULL,
+    profile_picture VARCHAR(255) NULL,
     feature_permissions JSON NULL,
     is_active TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -110,6 +111,7 @@ CREATE TABLE equipment (
     serial_number VARCHAR(150),
     specifications TEXT,
     acquisition_date DATE,
+    item_type ENUM('Consumable','Non-Consumable') NOT NULL DEFAULT 'Non-Consumable',
     status ENUM('Available','Assigned','Under Maintenance','Archived','Disposed')
         DEFAULT 'Available',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -194,6 +196,17 @@ CREATE TABLE qr_codes (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE
 );
+
+INSERT INTO schema_migrations (version) VALUES
+('001_add_maintenance_records.sql'),
+('002_add_profile_pictures.sql'),
+('003_add_equipment_item_type.sql'),
+('004_add_feature_permissions.sql'),
+('005_add_messaging.sql'),
+('006_add_message_edit_delete.sql'),
+('007_add_message_replies.sql'),
+('008_add_category_office_history.sql'),
+('009_add_account_history.sql');
 
 INSERT INTO offices(name,description) VALUES
 ('Institute of Computing Studies','Sample office'),

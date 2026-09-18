@@ -26,11 +26,10 @@
     </section>
 </div>
 
-{% if selected_group %}<script>
+{% if selected_group %}<script data-current-user-id="{{ g.current_user.id }}">
 (function () {
     var list = document.getElementById("message-list");
-    var groupId = {{ selected_group.id }};
-    var currentUserId = {{ g.current_user.id }};
+    var currentUserId = Number(document.currentScript.dataset.currentUserId);
     var replyIdInput = document.getElementById("reply-to-id");
     var replyPreview = document.getElementById("reply-preview");
     var replyPreviewName = document.getElementById("reply-preview-name");
