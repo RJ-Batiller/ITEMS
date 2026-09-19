@@ -102,6 +102,12 @@
         </div>
         {% endif %}
 
+        {% if accountable.assigned_at %}
+        <div>
+            Assigned: {{ accountable.assigned_at.strftime('%Y-%m-%d %H:%M:%S') }}
+        </div>
+        {% endif %}
+
     </div>
 
     {% endif %}
@@ -186,15 +192,15 @@
                 <div class="mb-3">
 
                     <label for="assigned_at" class="form-label">
-                        Assignment Date
+                        Assignment Date and Time
                     </label>
 
                     <input
-                        type="date"
+                        type="datetime-local"
                         name="assigned_at"
                         id="assigned_at"
                         class="form-control border rounded-2"
-                        value="{{ current_date }}"
+                        value="{{ current_datetime }}"
                         required
                     >
 

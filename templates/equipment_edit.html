@@ -44,8 +44,10 @@
                         name="asset_code"
                         class="form-control"
                         value="{{ equipment.asset_code }}"
+                        readonly
                         required
                     >
+                    <div class="form-text">The property number identifies the printed QR code and cannot be changed.</div>
 
                 </div>
 
@@ -256,7 +258,6 @@
 
                 </div>
 
-
                 <div class="col-12">
 
                     <label class="form-label">
@@ -271,6 +272,73 @@
 
                 </div>
 
+                {% if accountable %}
+                <div class="col-12">
+                    <div class="border rounded-3 p-3 bg-light-subtle">
+                        <h5 class="mb-3">Accountability details</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="accountable-person" class="form-label">Accountable Person</label>
+                                <input
+                                    type="text"
+                                    id="accountable-person"
+                                    name="accountable_person"
+                                    class="form-control"
+                                    value="{{ accountable.person_name }}"
+                                    maxlength="150"
+                                    required
+                                >
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="accountable-position" class="form-label">Position</label>
+                                <input
+                                    type="text"
+                                    id="accountable-position"
+                                    name="accountable_position"
+                                    class="form-control"
+                                    value="{{ accountable.person_position or '' }}"
+                                    maxlength="150"
+                                    required
+                                >
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="accountable-office" class="form-label">Accountable Office</label>
+                                <select id="accountable-office" name="accountable_office_id" class="form-select" required>
+                                    <option value="">Select Office</option>
+                                    {% for o in offices %}
+                                    <option value="{{ o.id }}" {% if accountable.office_id == o.id %}selected{% endif %}>{{ o.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="accountable-assigned-at" class="form-label">Assignment Date and Time</label>
+                                <input
+                                    type="datetime-local"
+                                    id="accountable-assigned-at"
+                                    name="accountable_assigned_at"
+                                    class="form-control"
+                                    value="{{ accountable.assigned_at.strftime('%Y-%m-%dT%H:%M') if accountable.assigned_at else '' }}"
+                                    required
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                  <div class="col-12">
+                    <div class="border rounded-3 p-3 bg-light-subtle">
+                        <h5 class="mb-3">Accountability details</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                    <p class="text-muted mb-0">No current accountability assignment. Assign an accountable to edit these details.</p>
+                    </div>
+                        </div>
+                    </div>
+                  </div>
+                {% endif %}
 
                 <div class="col-12">
 

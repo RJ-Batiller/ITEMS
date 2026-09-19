@@ -24,6 +24,22 @@
                 <div id="scanStatus" class="alert alert-info mt-3 mb-0">
                     Point the camera at an item QR code.
                 </div>
+                <div class="mt-3">
+                    <button
+                        id="remoteStart"
+                        type="button"
+                        class="btn btn-outline-primary"
+                        data-start-url="{{ url_for('start_remote_scanner') }}"
+                    >
+                        Use Phone Camera
+                    </button>
+                    <div id="remotePanel" class="border rounded-3 p-3 mt-3 d-none">
+                        <strong>Phone scanner connected</strong>
+                        <p class="small text-muted mb-2">Scan this code with your phone, then open the link.</p>
+                        <img id="remoteQr" class="img-fluid d-block mb-2" style="width:180px;" alt="Phone scanner pairing QR code">
+                        <a id="remoteUrl" class="small text-break" target="_blank" rel="noopener noreferrer"></a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -32,7 +48,7 @@
         <div class="card shadow-sm border-0">
             <div class="card-body">
                 <h5 class="mb-3">Item Information</h5>
-                <div id="result">
+                <div id="result" data-can-edit="{{ '1' if can_edit_equipment else '0' }}">
                     <div class="text-muted">
                         Item information will appear here after a successful scan.
                     </div>
@@ -47,6 +63,7 @@
 <script>
 let lastScanned = "";
 let scanning = true;
+let remotePollTimer = null;
 
 function esc(value) {
     if (value === null || value === undefined || value === "") return "-";
@@ -62,13 +79,15 @@ function showItem(data) {
     document.getElementById("scanStatus").className = "alert alert-success mt-3 mb-0";
     document.getElementById("scanStatus").textContent = "QR code scanned successfully.";
 
+    const canEdit = document.getElementById("result").dataset.canEdit === "1";
+    const editButton = canEdit && data.id
+        ? `<a class="btn btn-sm btn-primary mt-3" href="/equipment/edit/${encodeURIComponent(data.id)}">Edit information</a>`
+        : "";
+
     document.getElementById("result").innerHTML = `
-        <div class="mb-3">
-            <span class="badge bg-primary">${esc(data.status)}</span>
-        </div>
         <div class="row g-3">
             <div class="col-md-6">
-                        <small class="text-muted">Property Number</small>
+                <small class="text-muted">Property Number</small>
                 <div class="fw-bold">${esc(data.asset_code)}</div>
             </div>
             <div class="col-md-6">
@@ -91,6 +110,14 @@ function showItem(data) {
                 <small class="text-muted">Acquisition Date</small>
                 <div>${esc(data.acquisition_date)}</div>
             </div>
+            <div class="col-md-6">
+                <small class="text-muted">Item Type</small>
+                <div>${esc(data.item_type)}</div>
+            </div>
+            <div class="col-md-6">
+                <small class="text-muted">Status</small>
+                <div><span class="badge bg-primary">${esc(data.status)}</span></div>
+            </div>
             <div class="col-12">
                 <small class="text-muted">Description</small>
                 <div>${esc(data.description)}</div>
@@ -99,6 +126,26 @@ function showItem(data) {
                 <small class="text-muted">Specifications</small>
                 <div>${esc(data.specifications)}</div>
             </div>
+            <div class="col-12">
+                <strong>Accountability details</strong>
+            </div>
+            <div class="col-md-6">
+                <small class="text-muted">Accountable Person</small>
+                <div>${esc(data.accountable_person)}</div>
+            </div>
+            <div class="col-md-6">
+                <small class="text-muted">Accountable Office</small>
+                <div>${esc(data.accountable_office_name)}</div>
+            </div>
+            <div class="col-md-6">
+                <small class="text-muted">Position</small>
+                <div>${esc(data.accountable_position)}</div>
+            </div>
+            <div class="col-md-6">
+                <small class="text-muted">Assignment Date and Time</small>
+                <div>${esc(data.accountable_assigned_at)}</div>
+            </div>
+            <div class="col-12">${editButton}</div>
         </div>
     `;
 }
@@ -122,6 +169,48 @@ function loadByAssetCode(assetCode) {
             showItem(data);
         })
         .catch(() => showError("Unable to retrieve item information."));
+}
+
+function startRemoteScanner() {
+    const button = document.getElementById("remoteStart");
+    button.disabled = true;
+    button.textContent = "Creating phone session...";
+
+    fetch(button.dataset.startUrl)
+        .then(response => {
+            if (!response.ok) throw new Error("Unable to create session");
+            return response.json();
+        })
+        .then(data => {
+            const panel = document.getElementById("remotePanel");
+            const remoteQr = document.getElementById("remoteQr");
+            const remoteUrl = document.getElementById("remoteUrl");
+            remoteQr.src = `/qr-scanner/remote/${encodeURIComponent(data.token)}/qr`;
+            remoteUrl.href = data.url;
+            remoteUrl.textContent = data.url;
+            panel.classList.remove("d-none");
+            button.textContent = "Phone Camera Ready";
+
+            if (remotePollTimer) clearInterval(remotePollTimer);
+            remotePollTimer = setInterval(() => {
+                fetch(`/qr-scanner/remote/${encodeURIComponent(data.token)}/result`)
+                    .then(response => response.ok ? response.json() : null)
+                    .then(result => {
+                        if (result && result.asset_code) {
+                            clearInterval(remotePollTimer);
+                            remotePollTimer = null;
+                            loadByAssetCode(result.asset_code);
+                            document.getElementById("scanStatus").textContent = "Phone scan received.";
+                        }
+                    })
+                    .catch(() => {});
+            }, 1000);
+        })
+        .catch(() => {
+            button.disabled = false;
+            button.textContent = "Use Phone Camera";
+            showError("Unable to create a phone scanner session.");
+        });
 }
 
 function onScanSuccess(decodedText) {
@@ -160,6 +249,8 @@ function onScanFailure(error) {
     // Continuous scan failures are ignored.
 }
 
+document.getElementById("remoteStart").addEventListener("click", startRemoteScanner);
+
 if (typeof Html5QrcodeScanner === "undefined") {
     showError("The QR scanner library could not be loaded. Check your internet connection and refresh the page.");
 } else {
@@ -168,10 +259,10 @@ if (typeof Html5QrcodeScanner === "undefined") {
         {
             fps: 10,
             qrbox: { width: 250, height: 250 },
-            rememberLastUsedCamera: true
+            rememberLastUsedCamera: true,
+            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
         }
     );
-
     scanner.render(onScanSuccess, onScanFailure);
 }
 </script>

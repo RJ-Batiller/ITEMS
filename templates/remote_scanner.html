@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Phone Equipment Scanner</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 1rem; background: #f4f6f8; font-family: Arial, sans-serif; color: #17202a; }
+        main { max-width: 36rem; margin: 0 auto; background: #fff; padding: 1rem; border-radius: 1rem; box-shadow: 0 1rem 2rem rgba(15, 23, 42, .12); }
+        h1 { font-size: 1.35rem; margin: 0 0 .4rem; }
+        p { color: #5b6472; }
+        #reader { width: 100%; }
+        .status { margin-top: 1rem; padding: .75rem; border-radius: .5rem; background: #e8f1ff; }
+    </style>
+</head>
+<body>
+    <main id="remote-scanner" data-token="{{ token }}">
+        <h1>Phone Equipment Scanner</h1>
+        <p>Point your phone camera at the equipment QR code.</p>
+        <div id="reader"></div>
+        <div id="status" class="status">Waiting for a scan...</div>
+    </main>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script>
+        const token = document.getElementById("remote-scanner").dataset.token;
+        let lastValue = "";
+        let scanner;
+
+        function sendScan(value) {
+            if (!value || value === lastValue) return;
+            lastValue = value;
+            document.getElementById("status").textContent = "Scan sent to the computer: " + value;
+            fetch(`/qr-scanner/remote/${encodeURIComponent(token)}/scan`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ asset_code: value.trim() })
+            }).then(response => {
+                if (!response.ok) throw new Error("Session expired");
+                setTimeout(() => { lastValue = ""; }, 2000);
+            }).catch(() => {
+                document.getElementById("status").textContent = "The scanner session expired. Start a new one on the computer.";
+            });
+        }
+
+        if (typeof Html5QrcodeScanner === "undefined") {
+            document.getElementById("status").textContent = "The camera scanner could not load. Check the internet connection.";
+        } else {
+            scanner = new Html5QrcodeScanner("reader", {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                rememberLastUsedCamera: true,
+                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+            });
+            scanner.render(sendScan, () => {});
+        }
+    </script>
+</body>
+</html>

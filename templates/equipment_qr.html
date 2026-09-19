@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ equipment.asset_code }} - QR Code</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 1.5rem;
+            background: #f4f6f8;
+            color: #111827;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        .qr-card {
+            width: min(100%, 30rem);
+            padding: 2rem;
+            border: 1px solid #d9dee5;
+            border-radius: 0.8rem;
+            background: #fff;
+            box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.12);
+            text-align: center;
+        }
+        h1 { margin: 0 0 0.6rem; font-size: 1.5rem; }
+        p { color: #5b6472; margin: 0 0 1.5rem; }
+        .qr-image {
+            display: block;
+            width: min(280px, 100%);
+            height: auto;
+            margin: 0 auto 1.5rem;
+        }
+        .actions { display: flex; justify-content: center; gap: 0.6rem; flex-wrap: wrap; }
+        .button {
+            display: inline-block;
+            padding: 0.65rem 1rem;
+            border: 1px solid #1d4ed8;
+            border-radius: 0.35rem;
+            color: #1d4ed8;
+            background: #fff;
+            text-decoration: none;
+            cursor: pointer;
+            font: inherit;
+        }
+        .button.primary { color: #fff; background: #c8102e; border-color: #c8102e; }
+        @media print {
+            @page { margin: 0.5in; }
+            body { min-height: 0; padding: 0; background: #fff; }
+            .qr-card { border: 0; box-shadow: none; }
+            .actions { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <main class="qr-card">
+        <h1>Equipment QR Code</h1>
+        <p>Scan this QR code to open this equipment record.</p>
+        <img
+            class="qr-image"
+            src="{{ url_for('equipment_qr_image', item_id=equipment.id) }}"
+            alt="QR code for {{ equipment.asset_code }}"
+        >
+        <div class="actions">
+            <a class="button primary" href="{{ url_for('equipment_qr_print', item_id=equipment.id) }}">Print Sticker</a>
+            <a class="button" href="{{ url_for('equipment', item_id=equipment.id) }}">Back to Equipment</a>
+        </div>
+    </main>
+</body>
+</html>

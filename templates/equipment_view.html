@@ -41,6 +41,7 @@
                 {{ 'Complete Maintenance' if equipment.status == 'Under Maintenance' else 'Start Maintenance' }}
             </a>
             {% endif %}
+            {% if equipment.status != 'Disposed' %}
             <a
                 href="{{ url_for(
                     'edit_equipment',
@@ -50,6 +51,7 @@
             >
                 Edit
             </a>
+            {% endif %}
 
             {% if equipment.status not in ['Under Maintenance', 'Archived', 'Disposed'] %}
                 <a
@@ -59,8 +61,15 @@
                     ) }}"
                     class="btn btn-success"
                 >
-                    Assign
+                    {{ 'Re-Assign' if equipment.accountable_person else 'Assign' }}
                 </a>
+            {% endif %}
+
+            {% if equipment.status == 'Assigned' and user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'unassign') %}
+                <form method="post" action="{{ url_for('unassign_equipment', item_id=equipment.id) }}" class="d-inline" onsubmit="return confirm('Remove the current accountability assignment and mark this equipment available?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-secondary">Unassign</button>
+                </form>
             {% endif %}
 
             {% if equipment.status not in ['Archived', 'Disposed', 'Under Maintenance'] %}
@@ -164,6 +173,15 @@
 
             </div>
 
+            <div class="col-md-6 mb-3">
+
+                <strong>Item Type</strong>
+
+                <div>
+                    {{ equipment.item_type }}
+                </div>
+
+            </div>
 
             <div class="col-md-6 mb-3">
 
@@ -181,22 +199,10 @@
                 <strong>Acquisition Date</strong>
 
                 <div>
-                    {{ equipment.acquisition_date or '-' }}
+                    {{ equipment.acquisition_date.strftime('%Y-%m-%d') if equipment.acquisition_date else '-' }}
                 </div>
 
             </div>
-
-
-            <div class="col-md-6 mb-3">
-
-                <strong>Accountable Person</strong>
-
-                <div>
-                    {{ equipment.accountable_person or '-' }}
-                </div>
-
-            </div>
-
 
             <div class="col-12 mb-3">
 
@@ -216,7 +222,36 @@
                 <div>
                     {{ equipment.specifications or '-' }}
                 </div>
+            </div>
+            <div class="col-12 mb-4">
+                <div class="border rounded-3 p-3 bg-light-subtle">
+                    <h5 class="mb-3">Accountability details</h5>
+                    {% if equipment.accountable_person %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="text-muted small">Accountable Person</div>
+                            <div>{{ equipment.accountable_person or '-' }}</div>
+                        </div>
 
+                        <div class="col-md-6">
+                            <div class="text-muted small">Position</div>
+                            <div>{{ equipment.accountable_position or '-' }}</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="text-muted small">Accountable Office</div>
+                            <div>{{ equipment.accountable_office_name or '-' }}</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="text-muted small">Assignment Date and Time</div>
+                            <div>{{ equipment.accountable_assigned_at.strftime('%Y-%m-%d %H:%M:%S') if equipment.accountable_assigned_at else '-' }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No current accountability assignment. Assign an accountable person to view these details.</p>
+                    {% endif %}
+                </div>
             </div>
 
         </div>
@@ -293,7 +328,7 @@
 
         <img
             src="{{ url_for(
-                'equipment_qr',
+                'equipment_qr_image',
                 item_id=equipment.id
             ) }}"
             alt="Equipment QR Code"
@@ -311,6 +346,15 @@
                 class="btn btn-outline-dark"
             >
                 Open QR Code
+            </a>
+
+            <a
+                href="{{ url_for('equipment_qr_print', item_id=equipment.id) }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-outline-primary"
+            >
+                Print Sticker
             </a>
 
             <a

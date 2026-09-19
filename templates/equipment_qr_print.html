@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ equipment.asset_code }} - Equipment Sticker</title>
+    <style>
+        :root {
+            --ink: #111;
+            --paper: #fff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: #e9edf2;
+            color: var(--ink);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .print-toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 1rem;
+        }
+
+        button, a {
+            border: 1px solid #111;
+            background: #fff;
+            color: #111;
+            cursor: pointer;
+            font: inherit;
+            padding: 0.6rem 1rem;
+            text-decoration: none;
+        }
+
+        .sticker {
+            width: min(7.5in, calc(100vw - 2rem));
+            height: 4.75in;
+            min-height: 0;
+            margin: 0 auto 2rem;
+            padding: 0.2in;
+            border: 0.06in solid var(--ink);
+            background: var(--paper);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .school-name {
+            border-bottom: 0.035in solid var(--ink);
+            font-size: clamp(1.7rem, 4vw, 3.2rem);
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            line-height: 0.95;
+            padding: 0.02in 0 0.1in;
+            white-space: nowrap;
+        }
+
+        .equipment-name {
+            border-bottom: 0.035in solid var(--ink);
+            font-size: 1.35rem;
+            font-weight: 700;
+            min-height: 0.55in;
+            padding: 0.12in 0;
+        }
+
+        .equipment-name span,
+        .field-label {
+            font-weight: 700;
+        }
+
+        .equipment-name span { margin-right: 0.12in; }
+
+        .details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.18in 0.4in;
+            margin-top: 0.22in;
+            padding-right: 1.85in;
+        }
+
+        .field {
+            border-bottom: 0.025in solid var(--ink);
+            display: flex;
+            gap: 0.1in;
+            min-height: 0.42in;
+            font-size: 0.85rem;
+            line-height: 1.25;
+            padding-bottom: 0.05in;
+        }
+
+        .field-value {
+            overflow-wrap: anywhere;
+        }
+
+        .status {
+            text-transform: capitalize;
+        }
+
+        .qr {
+            position: absolute;
+            right: 0.4in;
+            top: 1.95in;
+            width: 1.45in;
+            height: 1.45in;
+        }
+
+        .note {
+            border-top: 0.035in solid var(--ink);
+            margin-top: auto;
+            padding-top: 0.1in;
+            font-size: 0.78rem;
+            font-weight: 700;
+            line-height: 1.35;
+        }
+
+        .college-logo {
+            display: block;
+            height: 0.65in;
+            margin: 0.12in auto 0;
+            object-fit: contain;
+        }
+
+        @media print {
+            @page { size: A4 portrait; margin: 0.35in; }
+            body { background: #fff; }
+            .print-toolbar { display: none; }
+            .sticker {
+                width: 7.5in;
+                height: 4.75in;
+                min-height: 0;
+                margin: 0;
+                page-break-inside: avoid;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .sticker { min-height: 0; }
+            .school-name { white-space: normal; }
+            .details { padding-right: 0; }
+            .qr {
+                position: static;
+                display: block;
+                margin: 0.35in auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-toolbar">
+        <button type="button" onclick="window.print()">Print Sticker</button>
+        <a href="{{ url_for('view_equipment', item_id=equipment.id) }}">Back</a>
+    </div>
+
+    <main class="sticker">
+        <div class="school-name">Mabalacat City College</div>
+
+        <div class="equipment-name">
+            <span>Equipment:</span> {{ equipment.name or '-' }}
+        </div>
+
+        <div class="details">
+            <div class="field">
+                <span class="field-label">P/N:</span>
+                <span class="field-value">{{ equipment.asset_code }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">S/N:</span>
+                <span class="field-value">{{ equipment.serial_number or '-' }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Date Acquired:</span>
+                <span class="field-value">{{ equipment.accountable_assigned_at.strftime('%Y-%m-%d') if equipment.accountable_assigned_at else '-' }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Office:</span>
+                <span class="field-value">{{ equipment.accountable_office_name or '-' }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Issued To:</span>
+                <span class="field-value">{{ equipment.accountable_person or '-' }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">Status:</span>
+                <span class="field-value status">{{ equipment.status }}</span>
+            </div>
+        </div>
+
+        <img
+            class="qr"
+            src="{{ url_for('equipment_qr_image', item_id=equipment.id) }}"
+            alt="QR code for {{ equipment.asset_code }}"
+        >
+
+        <img
+            class="college-logo"
+            src="{{ url_for('static', filename='images/mcc-logo.png') }}"
+            alt="Mabalacat City College logo"
+        >
+
+        <div class="note">
+            Note: This sticker is for accountability and inventory purposes.<br>
+            Subjected administrative action if removed.
+        </div>
+    </main>
+</body>
+</html>

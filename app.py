@@ -5,7 +5,7 @@ import json
 import secrets
 import re
 from functools import wraps
-from datetime import date
+from datetime import date, datetime
 
 from flask import (
     Flask,
@@ -103,6 +103,8 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
 """
 
 _maintenance_schema_ready = False
+_remote_scanner_sessions = {}
+REMOTE_SCANNER_TTL_SECONDS = 300
 
 
 @app.context_processor
@@ -120,6 +122,8 @@ def inject_security_helpers():
 @app.before_request
 def protect_state_changing_requests():
     if request.method == "POST":
+        if request.path.startswith("/qr-scanner/remote/"):
+            return None
         submitted = request.form.get("csrf_token", "")
         expected = session.get("csrf_token", "")
         if not expected or not hmac.compare_digest(submitted, expected):
@@ -749,7 +753,8 @@ def equipment():
             e.*,
             c.name AS category_name,
             o.name AS office_name,
-            a.person_name AS accountable_person
+            a.person_name AS accountable_person,
+            a.assigned_at AS accountable_assigned_at
         FROM equipment e
 
         LEFT JOIN categories c
@@ -761,6 +766,7 @@ def equipment():
         LEFT JOIN accountability a
             ON e.id = a.equipment_id
             AND a.is_current = 1
+
     """
 
     filters = []
@@ -960,7 +966,10 @@ def view_equipment(item_id):
             e.*,
             c.name AS category_name,
             o.name AS office_name,
-            a.person_name AS accountable_person
+            a.person_name AS accountable_person,
+            a.person_position AS accountable_position,
+            ao.name AS accountable_office_name,
+            a.assigned_at AS accountable_assigned_at
         FROM equipment e
 
         LEFT JOIN categories c
@@ -972,6 +981,9 @@ def view_equipment(item_id):
         LEFT JOIN accountability a
             ON e.id = a.equipment_id
             AND a.is_current = 1
+
+        LEFT JOIN offices ao
+            ON a.office_id = ao.id
 
         WHERE e.id = %s
     """, (item_id,))
@@ -1046,6 +1058,12 @@ def equipment_maintenance(item_id):
         conn.close()
         flash("Equipment not found.", "danger")
         return redirect(url_for("equipment"))
+
+    if equipment["status"] == "Disposed":
+        cur.close()
+        conn.close()
+        flash("Disposed equipment can only be viewed or scanned.", "danger")
+        return redirect(url_for("view_equipment", item_id=item_id))
 
     cur.execute("""
         SELECT *
@@ -1273,6 +1291,22 @@ def edit_equipment(item_id):
             url_for("equipment")
         )
 
+    if equipment["status"] == "Disposed":
+        cur.close()
+        conn.close()
+        flash("Disposed equipment cannot be edited.", "danger")
+        return redirect(url_for("view_equipment", item_id=item_id))
+
+    cur.execute("""
+        SELECT a.person_name, a.person_position, a.assigned_at, o.name AS office_name
+        FROM accountability a
+        LEFT JOIN offices o ON o.id = a.office_id
+        WHERE a.equipment_id = %s AND a.is_current = 1
+        ORDER BY a.id DESC
+        LIMIT 1
+    """, (item_id,))
+    accountable = cur.fetchone()
+
     cur.execute("""
         SELECT id, name
         FROM categories
@@ -1296,7 +1330,8 @@ def edit_equipment(item_id):
         "equipment_edit.html",
         equipment=equipment,
         categories=categories,
-        offices=offices
+        offices=offices,
+        accountable=accountable
     )
 
 
@@ -1339,8 +1374,25 @@ def update_equipment(item_id):
             url_for("equipment")
         )
 
+    if old["status"] == "Disposed":
+        cur.close()
+        conn.close()
+        flash("Disposed equipment cannot be edited.", "danger")
+        return redirect(url_for("view_equipment", item_id=item_id))
+
+    cur.execute("""
+        SELECT id, person_name, person_position, office_id, assigned_at
+        FROM accountability
+        WHERE equipment_id = %s
+          AND is_current = 1
+        ORDER BY id DESC
+        LIMIT 1
+    """, (item_id,))
+    current_accountable = cur.fetchone()
+
     try:
-        asset_code = clean_text(data.get("asset_code"), "Property Number", 80)
+        # Keep the printed QR identity stable when other equipment details change.
+        asset_code = old["asset_code"]
         name = clean_text(data.get("name"), "Equipment name", 150)
         description = optional_text(data.get("description"), 5000)
         serial_number = optional_text(data.get("serial_number"), 150)
@@ -1352,6 +1404,36 @@ def update_equipment(item_id):
         if item_type not in EQUIPMENT_ITEM_TYPES:
             raise ValueError("Select Consumable or Non-Consumable.")
         new_status = data.get("status", "Available")
+
+        accountability_update = None
+        if current_accountable:
+            accountability_person = clean_text(
+                data.get("accountable_person"),
+                "Accountable person",
+                150
+            )
+            accountability_position = clean_text(
+                data.get("accountable_position"),
+                "Accountable position",
+                150
+            )
+            accountability_office_id = required_id(
+                data.get("accountable_office_id"),
+                "Accountable office"
+            )
+            accountability_assigned_at = data.get("accountable_assigned_at", "").strip()
+            if not accountability_assigned_at:
+                raise ValueError("Assignment date and time is required.")
+            try:
+                accountability_assigned_at = datetime.fromisoformat(accountability_assigned_at)
+            except ValueError:
+                raise ValueError("Please provide a valid assignment date and time.")
+            accountability_update = (
+                accountability_person,
+                accountability_position,
+                accountability_office_id,
+                accountability_assigned_at.strftime("%Y-%m-%d %H:%M:%S")
+            )
     except ValueError as error:
         cur.close()
         conn.close()
@@ -1403,6 +1485,19 @@ def update_equipment(item_id):
         item_id
     ))
 
+    transaction_details = "Equipment information updated"
+    if accountability_update:
+        cur.execute("""
+            UPDATE accountability
+            SET person_name = %s,
+                person_position = %s,
+                office_id = %s,
+                assigned_at = %s
+            WHERE id = %s
+              AND is_current = 1
+        """, (*accountability_update, current_accountable["id"]))
+        transaction_details = "Equipment information and accountability updated"
+
     cur.execute("""
         INSERT INTO transactions
         (
@@ -1421,7 +1516,7 @@ def update_equipment(item_id):
     """, (
         item_id,
         session["user_id"],
-        "Equipment information updated"
+        transaction_details
     ))
 
     conn.commit()
@@ -1819,7 +1914,11 @@ def assign_equipment(item_id):
         equipment=equipment,
         accountable=accountable,
         offices=offices,
-        current_date=date.today().isoformat()
+        current_datetime=(
+            accountable["assigned_at"].strftime("%Y-%m-%dT%H:%M")
+            if accountable and accountable.get("assigned_at")
+            else datetime.now().strftime("%Y-%m-%dT%H:%M")
+        )
     )
 
 
@@ -1861,9 +1960,9 @@ def save_assignment(item_id):
         )
 
     try:
-        date.fromisoformat(assigned_at)
+        assigned_at_value = datetime.fromisoformat(assigned_at)
     except ValueError:
-        flash("Please provide a valid assignment date.", "danger")
+        flash("Please provide a valid assignment date and time.", "danger")
         return redirect(
             url_for(
                 "assign_equipment",
@@ -1928,7 +2027,7 @@ def save_assignment(item_id):
         person_name,
         person_position,
         office_id,
-        f"{assigned_at} 00:00:00"
+            assigned_at_value.strftime("%Y-%m-%d %H:%M:%S")
     ))
 
     cur.execute("""
@@ -1991,17 +2090,24 @@ def unassign_equipment(item_id):
     conn = db()
     cur = conn.cursor(dictionary=True)
 
-    cur.execute("SELECT id, status FROM equipment WHERE id = %s", (item_id,))
+    cur.execute("""
+        SELECT e.id, e.status, a.id AS accountability_id
+        FROM equipment e
+        LEFT JOIN accountability a
+            ON a.equipment_id = e.id
+            AND a.is_current = 1
+        WHERE e.id = %s
+    """, (item_id,))
     equipment = cur.fetchone()
     if not equipment:
         cur.close()
         conn.close()
         flash("Equipment not found.", "danger")
         return redirect(url_for("equipment"))
-    if equipment["status"] != "Assigned":
+    if not equipment["accountability_id"]:
         cur.close()
         conn.close()
-        flash("Only assigned equipment can be unassigned.", "danger")
+        flash("This equipment has no current accountability assignment.", "danger")
         return redirect(url_for("view_equipment", item_id=item_id))
 
     cur.execute("""
@@ -2640,24 +2746,33 @@ def equipment_qr(item_id):
             "error": "Equipment not found"
         }), 404
 
-    qr = qrcode.QRCode(
-        version=1,
-        box_size=10,
-        border=4
-    )
+    return render_template("equipment_qr.html", equipment=equipment)
 
+
+@app.route("/equipment/<int:item_id>/qr/image")
+@login_required
+def equipment_qr_image(item_id):
+    conn = db()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute("""
+        SELECT id, asset_code
+        FROM equipment
+        WHERE id = %s
+    """, (item_id,))
+    equipment = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not equipment:
+        return jsonify({"error": "Equipment not found"}), 404
+
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
     qr.add_data(equipment["asset_code"])
     qr.make(fit=True)
 
-    image = qr.make_image()
-
     buffer = BytesIO()
-
-    image.save(
-        buffer,
-        format="PNG"
-    )
-
+    qr.make_image().save(buffer, format="PNG")
     buffer.seek(0)
 
     return send_file(
@@ -2665,6 +2780,132 @@ def equipment_qr(item_id):
         mimetype="image/png",
         download_name=f"{equipment['asset_code']}.png"
     )
+
+
+@app.route("/equipment/<int:item_id>/qr/print")
+@login_required
+def equipment_qr_print(item_id):
+    conn = db()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute("""
+        SELECT
+            e.id,
+            e.asset_code,
+            e.name,
+            e.serial_number,
+            e.status,
+            a.person_name AS accountable_person,
+            a.assigned_at AS accountable_assigned_at,
+            ao.name AS accountable_office_name
+        FROM equipment e
+        LEFT JOIN accountability a
+            ON e.id = a.equipment_id
+            AND a.is_current = 1
+        LEFT JOIN offices ao
+            ON a.office_id = ao.id
+        WHERE e.id = %s
+    """, (item_id,))
+
+    equipment = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not equipment:
+        flash("Equipment not found.", "danger")
+        return redirect(url_for("equipment"))
+
+    return render_template("equipment_qr_print.html", equipment=equipment)
+
+
+# ============================================================
+# REMOTE PHONE SCANNER
+# ============================================================
+
+def _remote_scanner_session(token):
+    remote = _remote_scanner_sessions.get(token)
+    if not remote or remote["expires_at"] <= datetime.now().timestamp():
+        _remote_scanner_sessions.pop(token, None)
+        return None
+    return remote
+
+
+def _remote_scanner_url(token):
+    public_base_url = os.getenv("APP_PUBLIC_URL", "").rstrip("/")
+    path = url_for("remote_scanner", token=token)
+    return f"{public_base_url}{path}" if public_base_url else url_for("remote_scanner", token=token, _external=True)
+
+
+@app.route("/qr-scanner/remote/start")
+@login_required
+def start_remote_scanner():
+    now = datetime.now().timestamp()
+    for token, remote in list(_remote_scanner_sessions.items()):
+        if remote["expires_at"] <= now:
+            _remote_scanner_sessions.pop(token, None)
+
+    token = secrets.token_urlsafe(24)
+    _remote_scanner_sessions[token] = {
+        "user_id": session["user_id"],
+        "expires_at": now + REMOTE_SCANNER_TTL_SECONDS,
+        "asset_code": None,
+    }
+    remote_url = _remote_scanner_url(token)
+    return jsonify({"token": token, "url": remote_url, "expires_in": REMOTE_SCANNER_TTL_SECONDS})
+
+
+@app.route("/qr-scanner/remote/<token>")
+def remote_scanner(token):
+    if not _remote_scanner_session(token):
+        return render_template(
+            "error.html",
+            code=410,
+            title="Scanner session expired",
+            message="Start a new phone scanner session from the computer.",
+        ), 410
+    return render_template("remote_scanner.html", token=token)
+
+
+@app.route("/qr-scanner/remote/<token>/qr")
+def remote_scanner_qr(token):
+    if not _remote_scanner_session(token):
+        return jsonify({"error": "Scanner session expired"}), 410
+
+    remote_url = _remote_scanner_url(token)
+    qr = qrcode.QRCode(version=1, box_size=8, border=4)
+    qr.add_data(remote_url)
+    qr.make(fit=True)
+    buffer = BytesIO()
+    qr.make_image().save(buffer, format="PNG")
+    buffer.seek(0)
+    return send_file(buffer, mimetype="image/png")
+
+
+@app.route("/qr-scanner/remote/<token>/scan", methods=["POST"])
+def receive_remote_scan(token):
+    remote = _remote_scanner_session(token)
+    if not remote:
+        return jsonify({"error": "Scanner session expired"}), 410
+
+    payload = request.get_json(silent=True) or {}
+    asset_code = str(payload.get("asset_code", "")).strip()
+    if not asset_code or len(asset_code) > 150:
+        return jsonify({"error": "Invalid equipment QR value"}), 400
+
+    remote["asset_code"] = asset_code
+    return jsonify({"ok": True})
+
+
+@app.route("/qr-scanner/remote/<token>/result")
+@login_required
+def remote_scanner_result(token):
+    remote = _remote_scanner_session(token)
+    if not remote or remote["user_id"] != session["user_id"]:
+        return jsonify({"error": "Scanner session expired"}), 410
+
+    asset_code = remote["asset_code"]
+    remote["asset_code"] = None
+    return jsonify({"asset_code": asset_code})
 
 
 # ============================================================
@@ -2677,7 +2918,12 @@ def equipment_qr(item_id):
 def qr_scanner():
 
     return render_template(
-        "qr_scanner.html"
+        "qr_scanner.html",
+        can_edit_equipment=can_perform_action(
+            g.current_user["role_name"],
+            "edit",
+            g.current_user.get("feature_permissions")
+        )
     )
 
 
@@ -2700,7 +2946,11 @@ def api_equipment(asset_code):
             e.*,
             c.name AS category_name,
             o.name AS office_name,
-            a.person_name AS accountable_person
+            a.person_name AS accountable_person,
+            a.person_position AS accountable_position,
+            a.office_id AS accountable_office_id,
+            ao.name AS accountable_office_name,
+            a.assigned_at AS accountable_assigned_at
         FROM equipment e
 
         LEFT JOIN categories c
@@ -2713,10 +2963,19 @@ def api_equipment(asset_code):
             ON e.id = a.equipment_id
             AND a.is_current = 1
 
+        LEFT JOIN offices ao
+            ON a.office_id = ao.id
+
         WHERE e.asset_code = %s
     """, (asset_code,))
 
     row = cur.fetchone()
+
+    if row:
+        if row.get("acquisition_date"):
+            row["acquisition_date"] = row["acquisition_date"].isoformat()
+        if row.get("accountable_assigned_at"):
+            row["accountable_assigned_at"] = row["accountable_assigned_at"].strftime("%Y-%m-%d %H:%M:%S")
 
     cur.close()
     conn.close()
@@ -3592,8 +3851,11 @@ def update_user_permissions(user_id):
 
 if __name__ == "__main__":
 
+    ssl_context = "adhoc" if env_flag("APP_HTTPS") else None
+
     app.run(
         debug=app.config["DEBUG"],
         host=os.getenv("APP_HOST", "127.0.0.1"),
-        port=int(os.getenv("APP_PORT", "5000"))
+        port=int(os.getenv("APP_PORT", "5000")),
+        ssl_context=ssl_context
     )
