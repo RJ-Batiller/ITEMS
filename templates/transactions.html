@@ -102,7 +102,7 @@
 
                     <td>
 
-                        <span class="badge transaction-badge transaction-{{ t.action | lower | replace(' ', '-') }}">
+                        <span class="badge transaction-badge transaction-{{ t.action | lower | replace(' ', '-') | replace('/', '-') }}">
                             {{ t.action }}
                         </span>
 

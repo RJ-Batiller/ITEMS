@@ -11,3 +11,5 @@ __pycache__/
 *.log
 *.sqlite3
 *.db
+private_uploads/chat/*
+static/uploads/profiles/*

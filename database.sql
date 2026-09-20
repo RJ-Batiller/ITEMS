@@ -1,4 +1,4 @@
-CREATE DATABASE IF NOT EXISTS items_db
+﻿CREATE DATABASE IF NOT EXISTS items_db
 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE items_db;
 
@@ -16,7 +16,7 @@ CREATE TABLE roles (
 INSERT INTO roles (name,description) VALUES
 ('Super Admin','Highest-level system administrator'),
 ('Admin','Inventory and transaction administrator'),
-('Worker','Limited inventory-related access');
+('Staff','Can submit equipment for administrative approval');
 
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -28,6 +28,7 @@ CREATE TABLE users (
     profile_picture VARCHAR(255) NULL,
     feature_permissions JSON NULL,
     is_active TINYINT(1) DEFAULT 1,
+    login_count INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (role_id) REFERENCES roles(id)
 );
@@ -89,10 +90,10 @@ CREATE TABLE categories (
 
 CREATE TABLE organization_history (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    entity_type ENUM('Category', 'Office', 'Account') NOT NULL,
+    entity_type ENUM('Category', 'Office', 'Account', 'Equipment') NOT NULL,
     entity_id INT NULL,
     entity_name VARCHAR(150) NOT NULL,
-    action ENUM('Created', 'Updated', 'Deleted') NOT NULL,
+    action VARCHAR(80) NOT NULL,
     details VARCHAR(500),
     user_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -114,10 +115,19 @@ CREATE TABLE equipment (
     item_type ENUM('Consumable','Non-Consumable') NOT NULL DEFAULT 'Non-Consumable',
     status ENUM('Available','Assigned','Under Maintenance','Archived','Disposed')
         DEFAULT 'Available',
+    approval_status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Approved',
+    created_by INT NULL,
+    reviewed_by INT NULL,
+    reviewed_at DATETIME NULL,
+    review_details VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
-    FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE SET NULL
+    FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_equipment_approval_status (approval_status),
+    INDEX idx_equipment_created_by (created_by)
 );
 
 CREATE TABLE accountability (
@@ -148,6 +158,39 @@ CREATE TABLE transactions (
     INDEX idx_transactions_user_created (user_id, created_at),
     FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE equipment_action_requests (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    equipment_id INT NOT NULL,
+    requested_by INT NOT NULL,
+    action_type VARCHAR(40) NOT NULL,
+    request_data LONGTEXT NOT NULL,
+    status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+    reviewed_by INT NULL,
+    reviewed_at DATETIME NULL,
+    review_details VARCHAR(500) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_equipment_action_requests_status (status, created_at),
+    INDEX idx_equipment_action_requests_equipment (equipment_id, created_at),
+    FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE,
+    FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE organization_requests (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    entity_type ENUM('Category','Office') NOT NULL,
+    requested_by INT NOT NULL,
+    request_data LONGTEXT NOT NULL,
+    status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+    reviewed_by INT NULL,
+    reviewed_at DATETIME NULL,
+    review_details VARCHAR(500) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_organization_requests_status (status, created_at),
+    FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE maintenance_records (
@@ -206,7 +249,14 @@ INSERT INTO schema_migrations (version) VALUES
 ('006_add_message_edit_delete.sql'),
 ('007_add_message_replies.sql'),
 ('008_add_category_office_history.sql'),
-('009_add_account_history.sql');
+('009_add_account_history.sql'),
+('010_staff_equipment_approval.sql'),
+('011_equipment_action_requests.sql'),
+('012_normalize_transaction_actions.sql'),
+('013_organization_requests.sql'),
+('014_expand_organization_history.sql'),
+('015_allow_combined_organization_actions.sql'),
+('016_add_login_tracking.sql');
 
 INSERT INTO offices(name,description) VALUES
 ('Institute of Computing Studies','Sample office'),
@@ -224,3 +274,6 @@ INSERT INTO categories(name,description) VALUES
 -- Create the Super Admin securely with: py seed_superadmin.py
 -- The default development username is superadmin1. Set SUPERADMIN_PASSWORD
 -- in .env instead of storing a usable password in this schema file.
+
+
+

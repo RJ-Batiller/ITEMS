@@ -1,9 +1,9 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block content %}
 
 <section class="dashboard-hero">
     <div>
-        <p class="catalog-kicker mb-2">Operations intelligence / live overview</p>
+        <p class="catalog-kicker mb-2">{{ session.get('login_greeting', 'Welcome') }}</p>
         <h1 class="dashboard-hero-title">Inventory command center</h1>
         <p class="text-muted mb-0">Real-time Analytics of equipment, accountability, maintenance, and system activity.</p>
     </div>

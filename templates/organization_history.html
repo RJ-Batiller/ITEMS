@@ -1,10 +1,10 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-end mb-4 transaction-heading">
     <div>
         <p class="catalog-kicker mb-1">Organization audit trail</p>
         <h2 class="fw-bold mb-1">Organization History</h2>
-        <p class="text-muted mb-0">Review changes made to categories, offices, and user accounts.</p>
+        <p class="text-muted mb-0">Review requests and changes for categories, offices, and user accounts.</p>
     </div>
     <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary">Equipment transactions</a>
 </div>
@@ -26,7 +26,7 @@
                 <label class="form-label small text-muted" for="organization-history-action">Action</label>
                 <select class="form-select" id="organization-history-action" name="action">
                     <option value="">All actions</option>
-                    {% for option in ['Created', 'Updated', 'Deleted'] %}<option value="{{ option }}" {% if action == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+                    {% for option in action_options %}<option value="{{ option }}" {% if action == option %}selected{% endif %}>{{ option.replace('/', ' / ') }}</option>{% endfor %}
                 </select>
             </div>
             <div class="col-sm-4 col-lg-2 d-grid"><button class="btn btn-primary" type="submit">Filter</button></div>
@@ -45,7 +45,9 @@
                 <td>{{ entry.created_at.strftime('%Y-%m-%d %H:%M') if entry.created_at else '-' }}</td>
                 <td>{{ entry.entity_type }}</td>
                 <td><strong>{{ entry.entity_name }}</strong></td>
-                <td><span class="badge transaction-badge transaction-{{ entry.action|lower }}">{{ entry.action }}</span></td>
+                {% set display_action = 'Updated' if entry.action in ['Updated', 'Edited'] else entry.action %}
+                {% set action_class = ('updated' if entry.action in ['Updated', 'Edited'] else entry.action|lower)|replace('/', '-') %}
+                <td><span class="badge transaction-badge transaction-{{ action_class }}">{{ display_action }}</span></td>
                 <td>{{ entry.details or '-' }}</td>
                 <td>{{ entry.full_name }}</td>
             </tr>
@@ -57,3 +59,5 @@
     </div>
 </div>
 {% endblock %}
+
+

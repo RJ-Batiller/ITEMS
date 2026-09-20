@@ -1,4 +1,4 @@
-"""Apply numbered SQL migrations to the ITEMS database."""
+﻿"""Apply numbered SQL migrations to the ITEMS database."""
 
 import os
 from pathlib import Path
@@ -55,6 +55,19 @@ def apply_migrations():
             )
             conn.commit()
             print(f"Applied migration: {version}")
+        except mysql.connector.Error as error:
+            conn.rollback()
+            # A partially applied deployment may already have this column.
+            # Treat that state as complete and record the migration.
+            if error.errno == 1060 and version == "016_add_login_tracking.sql":
+                cur.execute(
+                    "INSERT INTO schema_migrations (version) VALUES (%s)",
+                    (version,),
+                )
+                conn.commit()
+                print(f"Migration already applied: {version}")
+                continue
+            raise
         except Exception:
             conn.rollback()
             raise
@@ -66,3 +79,4 @@ def apply_migrations():
 
 if __name__ == "__main__":
     apply_migrations()
+

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-heading mb-4">
+    <div class="catalog-kicker">Administrative review</div>
+    <h1>Equipment Requests</h1>
+    <p class="text-muted mb-0">Review equipment submitted by Staff before it appears in the inventory.</p>
+</div>
+
+<div class="card table-card shadow-sm">
+    <div class="card-body table-responsive equipment-table-scroll">
+        {% if requests %}
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Property Number</th>
+                    <th>Equipment</th>
+                    <th>Category</th>
+                    <th>Office</th>
+                    <th>Requested By</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in requests %}
+                <tr>
+                    <td>{{ item.asset_code }}</td>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.category_name or '-' }}</td>
+                    <td>{{ item.office_name or '-' }}</td>
+                    <td>{{ item.requested_by_name }}</td>
+                    <td>{{ item.created_at }}</td>
+                    <td>
+                        <div class="equipment-action-scroll" role="group" aria-label="Request actions">
+                            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('view_equipment_request', item_id=item.id) }}">View</a>
+                            <form method="post" action="{{ url_for('approve_equipment_request', item_id=item.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-primary" type="submit">Approve</button>
+                            </form>
+                            <form method="post" action="{{ url_for('reject_equipment_request', item_id=item.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Reject</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state py-5 text-center">
+            <h2 class="h5">No pending requests</h2>
+            <p class="text-muted mb-0">Staff equipment submissions will appear here for review.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="page-heading mb-3 mt-5">
+    <div class="catalog-kicker">Changes awaiting approval</div>
+    <h2>Equipment Action Requests</h2>
+    <p class="text-muted mb-0">Staff changes to approved equipment are held here until reviewed.</p>
+</div>
+
+<div class="card table-card shadow-sm">
+    <div class="card-body table-responsive equipment-table-scroll">
+        {% if action_requests %}
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Property Number</th>
+                    <th>Equipment</th>
+                    <th>Category</th>
+                    <th>Office</th>
+                    <th>Requested Action</th>
+                    <th>Requested By</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in action_requests %}
+                <tr>
+                    <td>{{ item.asset_code }}</td>
+                    <td>{{ item.equipment_name }}</td>
+                    <td>{{ item.category_name or '-' }}</td>
+                    <td>{{ item.office_name or '-' }}</td>
+                    <td><span class="badge transaction-badge transaction-requested">{{ item.action_type }}</span></td>
+                    <td>{{ item.requested_by_name }}</td>
+                    <td>{{ item.created_at }}</td>
+                    <td>
+                        <div class="equipment-action-scroll" role="group" aria-label="Equipment action request actions">
+                            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('view_equipment_action_request', request_id=item.id) }}">View</a>
+                            <form method="post" action="{{ url_for('approve_equipment_action_request', request_id=item.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-primary" type="submit">Approve</button>
+                            </form>
+                            <form method="post" action="{{ url_for('reject_equipment_action_request', request_id=item.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Reject</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state py-4 text-center">
+            <p class="text-muted mb-0">No pending equipment action requests.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="page-heading mb-3 mt-5">
+    <div class="catalog-kicker">Structure awaiting approval</div>
+    <h2>Category and Office Requests</h2>
+    <p class="text-muted mb-0">Staff-created categories and offices stay pending until approved.</p>
+</div>
+<div class="card table-card shadow-sm">
+    <div class="card-body table-responsive equipment-table-scroll">
+        {% if organization_requests %}
+        <table class="table align-middle">
+            <thead><tr><th>Type</th><th>Name</th><th>Description</th><th>Requested By</th><th>Submitted</th><th>Actions</th></tr></thead>
+            <tbody>
+            {% for item in organization_requests %}
+            <tr>
+                <td>{{ item.entity_type }}</td>
+                <td>{{ item.request_name }}</td>
+                <td>{{ item.request_description or '-' }}</td>
+                <td>{{ item.requested_by_name }}</td>
+                <td>{{ item.created_at }}</td>
+                <td>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('view_organization_request', request_id=item.request_id) }}">View</a>
+                    <form method="post" action="{{ url_for('approve_organization_request', request_id=item.request_id) }}" class="d-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-primary" type="submit">Approve</button></form>
+                    <form method="post" action="{{ url_for('reject_organization_request', request_id=item.request_id) }}" class="d-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" type="submit">Reject</button></form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<p class="text-muted mb-0">No pending category or office requests.</p>{% endif %}
+    </div>
+</div>
+{% endblock %}

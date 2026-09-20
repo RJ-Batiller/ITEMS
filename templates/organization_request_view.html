@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-heading mb-4">
+    <div class="catalog-kicker">Administrative review</div>
+    <h1>{{ request_row.entity_type }} Request</h1>
+    <p class="text-muted mb-0">Review the Staff submission before it is added to the organization records.</p>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <div>
+                <h2 class="h4 mb-1">{{ request_row.request_data.get('name', '-') }}</h2>
+                <p class="text-muted mb-0">Requested by {{ request_row.requested_by_name }} (@{{ request_row.requested_by_username }})</p>
+            </div>
+            <span class="status-badge status-{{ request_row.status|lower }}">{{ request_row.status }}</span>
+        </div>
+
+        <dl class="row mb-4">
+            <dt class="col-sm-3">Type</dt>
+            <dd class="col-sm-9">{{ request_row.entity_type }}</dd>
+            <dt class="col-sm-3">Description</dt>
+            <dd class="col-sm-9">{{ request_row.request_data.get('description') or '-' }}</dd>
+            <dt class="col-sm-3">Submitted</dt>
+            <dd class="col-sm-9">{{ request_row.created_at }}</dd>
+            {% if request_row.reviewed_at %}
+            <dt class="col-sm-3">Reviewed</dt>
+            <dd class="col-sm-9">{{ request_row.reviewed_at }}</dd>
+            <dt class="col-sm-3">Review details</dt>
+            <dd class="col-sm-9">{{ request_row.review_details or '-' }}</dd>
+            {% endif %}
+        </dl>
+
+        {% if request_row.status == 'Pending' %}
+        <div class="d-flex gap-2">
+            <form method="post" action="{{ url_for('approve_organization_request', request_id=request_row.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-primary" type="submit">Approve</button>
+            </form>
+            <form method="post" action="{{ url_for('reject_organization_request', request_id=request_row.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline-danger" type="submit">Reject</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

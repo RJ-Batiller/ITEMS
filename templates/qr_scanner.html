@@ -79,7 +79,7 @@ function showItem(data) {
     document.getElementById("scanStatus").className = "alert alert-success mt-3 mb-0";
     document.getElementById("scanStatus").textContent = "QR code scanned successfully.";
 
-    const canEdit = document.getElementById("result").dataset.canEdit === "1";
+    const canEdit = data.can_edit === true || document.getElementById("result").dataset.canEdit === "1";
     const editButton = canEdit && data.id
         ? `<a class="btn btn-sm btn-primary mt-3" href="/equipment/edit/${encodeURIComponent(data.id)}">Edit information</a>`
         : "";
@@ -117,6 +117,10 @@ function showItem(data) {
             <div class="col-md-6">
                 <small class="text-muted">Status</small>
                 <div><span class="badge bg-primary">${esc(data.status)}</span></div>
+            </div>
+            <div class="col-md-6">
+                <small class="text-muted">Created By</small>
+                <div>${esc(data.created_by_name || "-")}</div>
             </div>
             <div class="col-12">
                 <small class="text-muted">Description</small>

@@ -1,0 +1,2 @@
+ALTER TABLE users
+    ADD COLUMN login_count INT NOT NULL DEFAULT 0;

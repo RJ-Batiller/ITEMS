@@ -12,27 +12,29 @@
     </div>
 </div>
 
-{% if user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'offices') %}
+{% set can_manage_offices = user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'offices') %}
+{% set can_request_offices = is_staff_role(g.current_user.role_name) %}
+{% set show_office_controls = can_manage_offices or can_request_offices %}
+{% if can_manage_offices or can_request_offices %}
 <div class="card shadow-sm mb-3"><div class="card-body">
     <h2 class="h5 mb-3">Add office</h2>
     <form method="post" action="{{ url_for('add_office') }}" class="row g-2">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="col-md-5"><label class="visually-hidden" for="office-name">Office name</label><input class="form-control" id="office-name" name="name" placeholder="Office name" required></div>
         <div class="col-md-5"><label class="visually-hidden" for="office-description">Description</label><input class="form-control" id="office-description" name="description" placeholder="Description"></div>
-        <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Add office</button></div>
+        <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">{{ 'Request office' if can_request_offices and not can_manage_offices else 'Add office' }}</button></div>
     </form>
 </div></div>
 {% endif %}
 
 <div class="card shadow-sm"><div class="card-body table-responsive">
-    {% set can_manage_offices = user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'offices') %}
-    <table class="table align-middle mb-0"><thead><tr><th>Office</th><th>Description</th><th>Equipment</th>{% if can_manage_offices %}<th class="text-end">Controls</th>{% endif %}</tr></thead>
+    <table class="table align-middle mb-0"><thead><tr><th>Office</th><th>Description</th><th>Equipment</th>{% if show_office_controls %}<th class="text-end">Controls</th>{% endif %}</tr></thead>
     <tbody>{% for office in offices %}<tr>
         <td><strong>{{ office.name }}</strong></td><td>{{ office.description or '-' }}</td><td>{{ office.equipment_count }}</td>
-        {% if can_manage_offices %}<td class="text-end">
-            <details class="d-inline-block text-start"><summary class="btn btn-sm btn-outline-warning">Edit</summary><form method="post" action="{{ url_for('edit_office', office_id=office.id) }}" class="mt-2 p-3 border rounded bg-light"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="form-label small" for="office-name-{{ office.id }}">Office name</label><input class="form-control form-control-sm mb-2" id="office-name-{{ office.id }}" name="name" value="{{ office.name }}" required><label class="form-label small" for="office-description-{{ office.id }}">Description</label><input class="form-control form-control-sm mb-2" id="office-description-{{ office.id }}" name="description" value="{{ office.description or '' }}"><button class="btn btn-sm btn-danger w-100" type="submit">Save changes</button></form></details>
-            <form method="post" action="{{ url_for('delete_office', office_id=office.id) }}" class="d-inline-block" onsubmit="return confirm('Delete this office? Equipment will keep its records but lose this office assignment.');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" type="submit">Delete</button></form>
+        {% if show_office_controls %}<td class="text-end">
+            <details class="d-inline-block text-start"><summary class="btn btn-sm btn-outline-warning">{{ 'Request edit' if can_request_offices and not can_manage_offices else 'Edit' }}</summary><form method="post" action="{{ url_for('edit_office', office_id=office.id) }}" class="mt-2 p-3 border rounded bg-light"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="form-label small" for="office-name-{{ office.id }}">Office name</label><input class="form-control form-control-sm mb-2" id="office-name-{{ office.id }}" name="name" value="{{ office.name }}" required><label class="form-label small" for="office-description-{{ office.id }}">Description</label><input class="form-control form-control-sm mb-2" id="office-description-{{ office.id }}" name="description" value="{{ office.description or '' }}"><button class="btn btn-sm btn-danger w-100" type="submit">{{ 'Submit request' if can_request_offices and not can_manage_offices else 'Save changes' }}</button></form></details>
+            <form method="post" action="{{ url_for('delete_office', office_id=office.id) }}" class="d-inline-block" onsubmit="return confirm('{{ 'Submit a deletion request for this office?' if can_request_offices and not can_manage_offices else 'Delete this office? Equipment will keep its records but lose this office assignment.' }}');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" type="submit">{{ 'Request delete' if can_request_offices and not can_manage_offices else 'Delete' }}</button></form>
         </td>{% endif %}
-    </tr>{% else %}<tr><td colspan="{{ 4 if can_manage_offices else 3 }}" class="dashboard-empty">No offices match your search.</td></tr>{% endfor %}</tbody></table>
+    </tr>{% else %}<tr><td colspan="{{ 4 if show_office_controls else 3 }}" class="dashboard-empty">No offices match your search.</td></tr>{% endfor %}</tbody></table>
 </div></div>
 {% endblock %}

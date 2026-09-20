@@ -12,22 +12,28 @@ def client():
         yield test_client
 
 
-def test_super_admin_can_create_admin_and_worker():
-    assert creatable_roles("Super Admin") == ("Admin", "Worker")
+def test_super_admin_can_create_admin_and_staff():
+    assert creatable_roles("Super Admin") == ("Admin", "Staff")
 
 
-def test_admin_can_create_worker_only():
-    assert creatable_roles("Admin") == ("Worker",)
+def test_admin_can_create_staff_only():
+    assert creatable_roles("Admin") == ("Staff",)
 
 
-def test_worker_cannot_create_users():
-    assert creatable_roles("Worker") == ()
+def test_staff_cannot_create_users():
+    assert creatable_roles("Staff") == ()
+
+
+def test_staff_can_submit_equipment_but_not_manage_inventory():
+    assert can_perform_action("Staff", "add") is True
+    for action in ("edit", "archive", "restore", "dispose", "assign", "unassign", "maintenance"):
+        assert can_perform_action("Staff", action) is False
 
 
 def test_management_scope_matches_role_hierarchy():
-    assert manageable_roles("Super Admin") == ("Admin", "Worker")
-    assert manageable_roles("Admin") == ("Worker",)
-    assert manageable_roles("Worker") == ()
+    assert manageable_roles("Super Admin") == ("Admin", "Staff")
+    assert manageable_roles("Admin") == ("Staff",)
+    assert manageable_roles("Staff") == ()
 
 
 def test_worker_is_read_only_for_equipment():

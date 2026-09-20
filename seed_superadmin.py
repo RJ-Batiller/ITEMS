@@ -1,4 +1,5 @@
 import os
+import re
 
 import mysql.connector
 from dotenv import load_dotenv
@@ -8,12 +9,14 @@ from werkzeug.security import generate_password_hash
 load_dotenv(dotenv_path=".env")
 
 username = os.getenv("SUPERADMIN_USERNAME", "superadmin1")
-password = os.getenv("SUPERADMIN_PASSWORD", "admin123")
+password = os.getenv("SUPERADMIN_PASSWORD")
 full_name = os.getenv("SUPERADMIN_FULL_NAME", "System Super Admin")
 email = os.getenv("SUPERADMIN_EMAIL", "admin@mcc.edu.ph")
 
 if not password:
     raise RuntimeError("SUPERADMIN_PASSWORD must be set in .env before seeding.")
+if len(password) < 8 or not re.search(r"[A-Z]", password) or not re.search(r"[0-9]", password) or not re.search(r"[^A-Za-z0-9]", password):
+    raise RuntimeError("SUPERADMIN_PASSWORD must be at least 8 characters and include uppercase, number, and special character.")
 
 connection = mysql.connector.connect(
     host=os.getenv("DB_HOST", "127.0.0.1"),

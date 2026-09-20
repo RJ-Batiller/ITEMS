@@ -110,7 +110,7 @@ Use the project virtual-environment interpreter so the correct dependencies are 
 .venv\Scripts\python.exe seed_superadmin.py
 ```
 
-The current `database.sql` is a complete schema snapshot and already marks migrations `001` through `009` as included. Running `migrate.py` is still safe: it will report that the database is up to date. The seed command creates or updates the Super Admin account using the values in `.env`.
+The current `database.sql` is a complete schema snapshot and already marks migrations `001` through `010` as included. Running `migrate.py` is still safe: it will report that the database is up to date. The seed command creates or updates the Super Admin account using the values in `.env`.
 
 ### 7. Start Flask
 
@@ -181,6 +181,7 @@ If the database already exists, do not import `database.sql` again. Start MySQL,
 - Role structure
 - Dashboard
 - Equipment records
+- Staff equipment submissions with Admin/Super Admin approval
 - Categories
 - Offices
 - Search

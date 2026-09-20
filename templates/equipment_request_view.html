@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-heading mb-4">
+    <div class="catalog-kicker">Administrative review</div>
+    <h1>Request Details</h1>
+    <p class="text-muted mb-0">Review the Staff submission before approving or rejecting it.</p>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        {% if request_kind == 'equipment' %}
+        <h2 class="h4 mb-4">New Equipment Submission</h2>
+        <div class="row g-4">
+            <div class="col-md-6"><div class="text-muted small">Property Number</div><div>{{ request_row.asset_code }}</div></div>
+            <div class="col-md-6"><div class="text-muted small">Equipment</div><div>{{ request_row.name }}</div></div>
+            <div class="col-md-6"><div class="text-muted small">Serial Number</div><div>{{ request_row.serial_number or '-' }}</div></div>
+            <div class="col-md-6"><div class="text-muted small">Category</div><div>{{ request_row.category_name or '-' }}</div></div>
+            <div class="col-md-6"><div class="text-muted small">Office</div><div>{{ request_row.office_name or '-' }}</div></div>
+            <div class="col-md-6"><div class="text-muted small">Item Type</div><div>{{ request_row.item_type }}</div></div>
+            <div class="col-md-6"><div class="text-muted small">Acquisition Date</div><div>{{ request_row.acquisition_date or '-' }}</div></div>
+            <div class="col-md-6"><div class="text-muted small">Submitted By</div><div>{{ request_row.requested_by_name }}</div></div>
+            <div class="col-12"><div class="text-muted small">Description</div><div>{{ request_row.description or '-' }}</div></div>
+            <div class="col-12"><div class="text-muted small">Specifications</div><div>{{ request_row.specifications or '-' }}</div></div>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+            <form method="post" action="{{ url_for('approve_equipment_request', item_id=request_row.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-primary" type="submit">Approve</button>
+            </form>
+            <form method="post" action="{{ url_for('reject_equipment_request', item_id=request_row.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline-danger" type="submit">Reject</button>
+            </form>
+        </div>
+        {% else %}
+        <h2 class="h4 mb-4">{{ request_row.action_type }} Request</h2>
+        <div class="row g-4 mb-4">
+            <div class="col-md-4"><div class="text-muted small">Property Number</div><div>{{ request_row.asset_code }}</div></div>
+            <div class="col-md-4"><div class="text-muted small">Equipment</div><div>{{ request_row.equipment_name }}</div></div>
+            <div class="col-md-4"><div class="text-muted small">Current Status</div><div>{{ request_row.equipment_status }}</div></div>
+            <div class="col-md-4"><div class="text-muted small">Category</div><div>{{ request_row.category_name or '-' }}</div></div>
+            <div class="col-md-4"><div class="text-muted small">Office</div><div>{{ request_row.office_name or '-' }}</div></div>
+            <div class="col-md-6"><div class="text-muted small">Requested By</div><div>{{ request_row.requested_by_name }}</div></div>
+            <div class="col-md-6"><div class="text-muted small">Submitted</div><div>{{ request_row.request_created_at }}</div></div>
+        </div>
+        <h3 class="h6 text-uppercase text-muted">Requested information</h3>
+        <div class="row g-3">
+            {% for key, value in request_row.request_data.items() if key != 'csrf_token' %}
+            <div class="col-md-6"><div class="text-muted small">{{ key|replace('_', ' ')|title }}</div><div>{{ value or '-' }}</div></div>
+            {% else %}
+            <div class="col-12 text-muted">No request details were recorded.</div>
+            {% endfor %}
+        </div>
+        <div class="d-flex gap-2 mt-4">
+            <form method="post" action="{{ url_for('approve_equipment_action_request', request_id=request_row.request_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-primary" type="submit">Approve</button>
+            </form>
+            <form method="post" action="{{ url_for('reject_equipment_action_request', request_id=request_row.request_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline-danger" type="submit">Reject</button>
+            </form>
+        </div>
+        {% endif %}
+        <a href="{{ url_for('equipment_requests') }}" class="btn btn-cancel mt-3">Back to Requests</a>
+    </div>
+</div>
+{% endblock %}

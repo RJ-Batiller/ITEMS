@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -20,12 +20,14 @@
 <nav class="sidebar-nav" aria-label="Main navigation">
 <a class="{{ 'is-active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Dashboard</a>
 <a class="{{ 'is-active' if request.endpoint in ['equipment', 'equipment_view', 'equipment_add', 'equipment_edit', 'equipment_assign', 'equipment_maintenance', 'equipment_dispose', 'equipment_archive', 'equipment_transactions'] else '' }}" href="{{ url_for('equipment') }}">Equipment</a>
+{% if session.get('role') in ['Super Admin', 'Admin'] %}<a class="{{ 'is-active' if request.endpoint in ['equipment_requests', 'approve_equipment_request', 'reject_equipment_request', 'approve_equipment_action_request', 'reject_equipment_action_request', 'approve_organization_request', 'reject_organization_request', 'view_organization_request'] else '' }}" href="{{ url_for('equipment_requests') }}">Requests{% if pending_requests %}<span class="sidebar-notification-badge" aria-label="{{ pending_requests }} pending requests">{{ pending_requests if pending_requests < 100 else "99+" }}</span>{% endif %}</a>{% endif %}
+{% if session.get('role') == 'Staff' %}<a class="{{ 'is-active' if request.endpoint == 'my_equipment_requests' else '' }}" href="{{ url_for('my_equipment_requests') }}">My Requests{% if pending_requests %}<span class="sidebar-notification-badge" aria-label="{{ pending_requests }} pending requests">{{ pending_requests if pending_requests < 100 else "99+" }}</span>{% endif %}</a>{% endif %}
 <a class="{{ 'is-active' if request.endpoint == 'qr_scanner' else '' }}" href="{{ url_for('qr_scanner') }}">QR Scanner</a>
 <a class="{{ 'is-active' if request.endpoint in ['categories', 'category_history'] else '' }}" href="{{ url_for('categories') }}">Categories</a>
 <a class="{{ 'is-active' if request.endpoint in ['offices', 'office_history'] else '' }}" href="{{ url_for('offices') }}">Offices</a>
 <a class="{{ 'is-active' if request.endpoint == 'transactions' else '' }}" href="{{ url_for('transactions') }}">Transactions</a>
 <a class="{{ 'is-active' if request.endpoint == 'organization_history' else '' }}" href="{{ url_for('organization_history') }}">Organization History</a>
-<a class="{{ 'is-active' if request.endpoint in ['messages', 'create_chat_group', 'send_chat_message'] else '' }}" href="{{ url_for('messages') }}">Messages</a>
+<a class="{{ 'is-active' if request.endpoint in ['messages', 'create_chat_group', 'send_chat_message'] else '' }}" href="{{ url_for('messages') }}">Messages{% if unread_messages %}<span class="sidebar-notification-badge" aria-label="{{ unread_messages }} unread messages">{{ unread_messages if unread_messages < 100 else "99+" }}</span>{% endif %}</a>
 {% if session.get('role') in ['Super Admin', 'Admin'] %}<a class="{{ 'is-active' if request.endpoint == 'users' else '' }}" href="{{ url_for('users') }}">Users</a>{% endif %}
 <a class="{{ 'is-active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">My Profile</a>
 <a class="sidebar-logout" href="{{ url_for('logout') }}">Logout</a>
@@ -44,6 +46,8 @@
     <div class="profile-preview-modal-content"><button type="button" class="profile-preview-close" id="sidebar-profile-preview-close" aria-label="Close preview">&times;</button><h2 class="h5" id="sidebar-profile-preview-title">Profile picture</h2><img id="sidebar-profile-preview-image" class="profile-preview-large" src="" alt=""></div>
 </div>
 {% block scripts %}{% endblock %}
+<script src="{{ url_for('static', filename='js/password-strength.js') }}"></script>
+<script src="{{ url_for('static', filename='js/confirm-modal.js') }}"></script>
 <script>
 (function () {
     var trigger = document.querySelector('[data-sidebar-profile-preview]');
@@ -72,3 +76,5 @@
 </script>
 </body>
 </html>
+
+

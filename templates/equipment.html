@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
 
@@ -47,7 +47,6 @@
         <p class="small text-muted px-2">No categories yet.</p>
         {% endfor %}
 
-        {% if session.get('role', '').lower() != 'worker' %}
         <div class="equipment-sidebar-heading mt-4">Queues</div>
         <a
             href="{{ url_for('equipment', status='Under Maintenance', q=q) }}"
@@ -70,7 +69,6 @@
             <span>Disposed</span>
             <span class="equipment-category-count">{{ status_counts.get('Disposed', 0) }}</span>
         </a>
-        {% endif %}
     </aside>
 
     <section class="equipment-catalog-content">
@@ -81,7 +79,7 @@
      HIDDEN FOR WORKER
 ========================================================= -->
 
-{% if session.get('role', '').lower() != 'worker' %}
+{% if is_staff_role(session.get('role', '')) or session.get('role', '').lower() in ['admin', 'super admin'] %}
 
 <div class="card table-card shadow-sm mb-4">
 
@@ -268,7 +266,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-sm-3 d-flex gap-2">
+            <div class="col-sm-3 d-flex gap-2 catalog-filter-actions">
                 <button type="submit" class="btn btn-outline-primary flex-grow-1">Apply filters</button>
                 {% if q or selected_category_id or selected_item_type or selected_office_id or selected_status %}<a href="{{ url_for('equipment') }}" class="btn btn-outline-secondary">Clear filters</a>{% endif %}
             </div>
@@ -288,7 +286,7 @@
 
 <div class="card table-card shadow-sm">
 
-                <div class="card-body table-responsive">
+                <div class="card-body table-responsive equipment-table-scroll">
 
         <table class="table align-middle">
 
@@ -307,6 +305,8 @@
                     <th>Office</th>
 
                     <th>Status</th>
+
+                    <th>Created By</th>
 
                     <th>Accountable</th>
 
@@ -345,6 +345,13 @@
 
                     <td>
                         <span class="status-badge status-{{ e.status | lower | replace(' ', '-') }}">{{ e.status }}</span>
+                        {% if e.approval_status and e.approval_status != 'Approved' %}
+                        <span class="status-badge status-{{ e.approval_status | lower }} mt-1">{{ e.approval_status }}</span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {{ e.created_by_name or '-' }}
                     </td>
 
                     <td>
@@ -378,7 +385,7 @@
                             <!-- EDIT
                                  HIDDEN FOR WORKER -->
 
-                            {% if session.get('role', '').lower() != 'worker' %}
+                            {% if not is_staff_role(session.get('role', '')) or e.created_by == session.get('user_id') %}
 
                             {% if e.status != 'Disposed' %}
                             <a
@@ -396,6 +403,7 @@
                             <!-- ASSIGN
                                  HIDDEN FOR WORKER -->
 
+                            {% if not is_staff_role(session.get('role', '')) or e.approval_status == 'Approved' %}
                             {% if e.status not in ['Under Maintenance', 'Archived', 'Disposed'] %}
                             <a
                                 href="{{ url_for(
@@ -415,7 +423,7 @@
                             </form>
                             {% endif %}
 
-                            {% if e.status != 'Disposed' %}
+                            {% if e.status in ['Available', 'Under Maintenance'] or (is_staff_role(session.get('role', '')) and e.status == 'Assigned' and e.approval_status == 'Approved') %}
                             <a
                                 href="{{ url_for(
                                     'equipment_maintenance',
@@ -427,6 +435,7 @@
                             </a>
                             {% endif %}
 
+                            {% endif %}
                             {% endif %}
 
 
@@ -448,9 +457,10 @@
                             <!-- ARCHIVE
                                  HIDDEN FOR WORKER -->
 
-                            {% if session.get('role', '').lower() != 'worker' %}
+                            {% if not is_staff_role(session.get('role', '')) or (e.created_by == session.get('user_id') and e.approval_status == 'Approved') %}
 
                                 {% if e.status == 'Archived' %}
+                                {% if not is_staff_role(session.get('role', '')) %}
                                 <form
                                     method="post"
                                     action="{{ url_for('restore_equipment', item_id=e.id) }}"
@@ -460,29 +470,10 @@
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm btn-outline-success">Restore</button>
                                 </form>
+                                {% endif %}
                                 {% elif e.status not in ['Disposed', 'Under Maintenance'] %}
 
-                                <form
-                                    method="post"
-                                    action="{{ url_for(
-                                        'archive_equipment',
-                                        item_id=e.id
-                                    ) }}"
-                                    style="display:inline;"
-                                    onsubmit="return confirm(
-                                        'Archive this equipment?'
-                                    );"
-                                >
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                                    <button
-                                        type="submit"
-                                        class="btn btn-sm btn-outline-secondary"
-                                    >
-                                        Archive
-                                    </button>
-
-                                </form>
+                                <a href="{{ url_for('archive_equipment', item_id=e.id) }}" class="btn btn-sm btn-outline-secondary">Archive</a>
 
                                 {% if e.status != 'Disposed' %}
                                 <a
@@ -534,3 +525,4 @@
 </div>
 
 {% endblock %}
+
