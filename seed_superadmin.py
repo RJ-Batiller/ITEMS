@@ -13,6 +13,7 @@ password = os.getenv("SUPERADMIN_PASSWORD")
 full_name = os.getenv("SUPERADMIN_FULL_NAME", "System Super Admin")
 email = os.getenv("SUPERADMIN_EMAIL", "admin@mcc.edu.ph")
 
+
 if not password:
     raise RuntimeError("SUPERADMIN_PASSWORD must be set in .env before seeding.")
 if len(password) < 8 or not re.search(r"[A-Z]", password) or not re.search(r"[0-9]", password) or not re.search(r"[^A-Za-z0-9]", password):
