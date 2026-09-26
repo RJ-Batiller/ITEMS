@@ -70,6 +70,8 @@
     composer.addEventListener("submit", function () {
         composerSubmit.disabled = true;
         composerSubmit.textContent = "Sending...";
+        // Let the browser capture the form data before clearing the field.
+        window.setTimeout(function () { composerInput.value = ""; }, 0);
     });
     document.addEventListener("click", function (event) {
         var button = event.target.closest(".message-reply-button");
