@@ -939,7 +939,8 @@ body.app-shell {
     }
     
     .login-form-box {
-        padding: 30px 20px;
+        width: min(100%, 320px);
+        padding: 24px 20px;
     }
 }
 
