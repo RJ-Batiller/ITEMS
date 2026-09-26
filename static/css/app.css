@@ -3936,7 +3936,7 @@ body {
 .sidebar-user > .topbar-account {
     position: fixed;
     top: 18px;
-    left: 290px;
+    right: 26px;
     z-index: 1100;
 }
 
