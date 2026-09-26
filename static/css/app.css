@@ -3944,8 +3944,8 @@ body {
     .sidebar-user > .topbar-account {
         position: absolute;
         top: 50%;
-        right: 7px;
-        left: auto;
+        right: auto;
+        left: calc(100% + 8px);
         transform: translateY(-50%);
     }
 
@@ -3974,7 +3974,8 @@ body {
 
     .sidebar-user > .topbar-account .topbar-account-menu {
         top: calc(100% + 8px);
-        right: 0;
+        right: auto;
+        left: 0;
     }
 }
 
