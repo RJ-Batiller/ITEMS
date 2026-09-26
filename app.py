@@ -6,7 +6,7 @@ import secrets
 import re
 import sys
 from functools import wraps
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from flask import (
     Flask,
@@ -35,6 +35,14 @@ from io import BytesIO
 
 from config import Config, require_secret_key
 from database import get_db_connection
+
+# Philippine time is UTC+8 year-round and does not use daylight saving time.
+PHILIPPINE_TZ = timezone(timedelta(hours=8), name="Asia/Manila")
+
+
+def philippines_now():
+    """Return the current time in the application's display timezone."""
+    return datetime.now(PHILIPPINE_TZ)
 
 # Route modules import shared application helpers from ``app``. When this
 # file is started directly, expose the running ``__main__`` module under that

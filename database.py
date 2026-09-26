@@ -28,13 +28,21 @@ _maintenance_schema_ready = False
 
 def get_connection():
     """Open a configured MySQL connection."""
-    return mysql.connector.connect(
+    conn = mysql.connector.connect(
         host=Config.DB_HOST,
         port=Config.DB_PORT,
         user=Config.DB_USER,
         password=Config.DB_PASSWORD,
         database=Config.DB_NAME,
     )
+    # MySQL TIMESTAMP values are converted using the connection timezone.
+    # Keep database reads and CURRENT_TIMESTAMP writes on Philippine time.
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SET time_zone = '+08:00'")
+    finally:
+        cursor.close()
+    return conn
 
 
 def get_db_connection():

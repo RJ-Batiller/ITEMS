@@ -67,7 +67,7 @@ def serialize_chat_messages(cur, group_id, after_id=0):
 @app.route("/messages")
 @login_required
 def messages():
-    session["messages_seen_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    session["messages_seen_at"] = philippines_now().strftime("%Y-%m-%d %H:%M:%S")
     conn = db()
     cur = conn.cursor(dictionary=True)
     cur.execute("""

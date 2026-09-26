@@ -736,7 +736,7 @@ def equipment_maintenance(item_id):
 def equipment_requests():
     # Visiting the request queue marks the current queue as seen. New requests
     # created after this timestamp will make the sidebar indicator reappear.
-    session["requests_seen_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    session["requests_seen_at"] = philippines_now().strftime("%Y-%m-%d %H:%M:%S")
     conn = db()
     cur = conn.cursor(dictionary=True)
     cur.execute("""
@@ -804,7 +804,7 @@ def my_equipment_requests():
     if not is_staff_role(g.current_user["role_name"]):
         return redirect(url_for("equipment_requests"))
 
-    session["requests_seen_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    session["requests_seen_at"] = philippines_now().strftime("%Y-%m-%d %H:%M:%S")
     conn = db()
     cur = conn.cursor(dictionary=True)
     cur.execute("""
@@ -2568,7 +2568,7 @@ def assign_equipment(item_id):
         current_datetime=(
             accountable["assigned_at"].strftime("%Y-%m-%dT%H:%M")
             if accountable and accountable.get("assigned_at")
-            else datetime.now().strftime("%Y-%m-%dT%H:%M")
+            else philippines_now().strftime("%Y-%m-%dT%H:%M")
         )
     )
 
