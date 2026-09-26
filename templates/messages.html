@@ -20,7 +20,7 @@
             <div class="messenger-messages" id="message-list" aria-live="polite">
                 {% for message in selected_messages %}<article class="messenger-message {% if message.sender_id == g.current_user.id %}is-own{% endif %}" data-message-id="{{ message.id }}"><div class="messenger-avatar">{{ message.sender_name[:1]|upper }}</div><div class="messenger-message-content"><div class="messenger-message-meta"><strong>{{ message.sender_name }}</strong><time>{{ message.created_at }}</time></div>{% if message.reply_to_id %}<div class="messenger-reply-context"><strong>Reply to {{ message.reply_sender_name or 'original message' }}</strong><span>{{ message.reply_message or 'Message unavailable' }}</span></div>{% endif %}{% if message.is_deleted %}<p class="messenger-deleted">Message deleted</p>{% else %}{% if message.message %}<p>{{ message.message }}</p>{% endif %}{% if message.attachments %}<div class="messenger-attachments">{% for attachment in message.attachments %}<a href="{{ attachment.url }}" class="messenger-attachment" target="_blank" rel="noopener">{{ attachment.name }}<small>{{ (attachment.size / 1024)|round|int }} KB</small></a>{% endfor %}</div>{% endif %}<div class="messenger-message-controls"><button type="button" class="message-reply-button" data-reply-id="{{ message.id }}" data-reply-sender="{{ message.sender_name }}" data-reply-text="{{ message.message or 'Attachment' }}">Reply</button>{% if message.sender_id == g.current_user.id or (can_manage_groups and (message.sender_role_name|lower != 'super admin' or g.current_user.role_name|lower == 'super admin')) %}{% if message.message %}<details><summary>Edit</summary><form method="post" action="{{ url_for('edit_chat_message', message_id=message.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><textarea name="message" rows="2" maxlength="4000" required>{{ message.message }}</textarea><button class="btn btn-sm btn-primary" type="submit">Save</button></form></details>{% endif %}<form method="post" action="{{ url_for('delete_chat_message', message_id=message.id) }}" onsubmit="return confirm('Delete this message?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="message-delete-button" type="submit">Delete</button></form>{% endif %}</div>{% endif %}</div></article>{% else %}<div class="messenger-empty" id="message-empty">No messages yet. Start the conversation.</div>{% endfor %}
             </div>
-            <form class="messenger-composer" method="post" enctype="multipart/form-data" action="{{ url_for('send_chat_message', group_id=selected_group.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="reply_to_id" id="reply-to-id" value=""><div class="messenger-reply-preview" id="reply-preview" hidden><span>Replying to <strong id="reply-preview-name"></strong><em id="reply-preview-text"></em></span><button type="button" id="clear-reply" aria-label="Clear reply">&times;</button></div><textarea name="message" rows="2" maxlength="4000" placeholder="Write a message..." aria-label="Message"></textarea><div class="messenger-composer-footer"><label class="messenger-file-label" for="message-files">Attach files or photos</label><input id="message-files" type="file" name="attachments" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"><button class="btn btn-primary" type="submit">Send message</button></div></form>
+            <form class="messenger-composer" method="post" enctype="multipart/form-data" action="{{ url_for('send_chat_message', group_id=selected_group.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="reply_to_id" id="reply-to-id" value=""><div class="messenger-reply-preview" id="reply-preview" hidden><span>Replying to <strong id="reply-preview-name"></strong><em id="reply-preview-text"></em></span><button type="button" id="clear-reply" aria-label="Clear reply">&times;</button></div><textarea name="message" rows="2" maxlength="4000" placeholder="Write a message... (Enter to send, Shift+Enter for a new line)" aria-label="Message"></textarea><div class="messenger-composer-footer"><label class="messenger-file-label" for="message-files">Attach files or photos</label><input id="message-files" type="file" name="attachments" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"><button class="btn btn-primary" type="submit">Send message</button></div></form>
         </div>
         {% else %}<div class="card-body messenger-no-channel"><div class="messenger-no-channel-mark">+</div><h2>Start a secure conversation</h2><p class="text-muted">Select a group to view messages.{% if can_manage_groups %} Create a group to begin.{% endif %}</p></div>{% endif %}
     </section>
@@ -34,6 +34,8 @@
     var replyPreview = document.getElementById("reply-preview");
     var replyPreviewName = document.getElementById("reply-preview-name");
     var replyPreviewText = document.getElementById("reply-preview-text");
+    var composer = document.querySelector(".messenger-composer");
+    var composerInput = composer.querySelector("textarea[name='message']");
     var lastId = Array.from(list.querySelectorAll("[data-message-id]")).reduce(function (max, element) { return Math.max(max, Number(element.dataset.messageId)); }, 0);
     function escapeHtml(value) { return String(value == null ? "" : value).replace(/[&<>'"]/g, function (character) { return {"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;","\"":"&quot;"}[character]; }); }
     function addMessages(messages) {
@@ -57,6 +59,14 @@
         replyPreview.hidden = false;
         document.querySelector('.messenger-composer textarea').focus();
     }
+    composerInput.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" || event.shiftKey) return;
+        event.preventDefault();
+        if (composerInput.value.trim() || document.getElementById("message-files").files.length) {
+            if (composer.requestSubmit) composer.requestSubmit();
+            else composer.submit();
+        }
+    });
     document.addEventListener("click", function (event) {
         var button = event.target.closest(".message-reply-button");
         if (button) chooseReply(button);
