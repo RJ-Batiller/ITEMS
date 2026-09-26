@@ -3834,8 +3834,45 @@ body {
 }
 
 @media (max-width: 900px) {
+    /* Keep the add-equipment heading and actions readable on narrow screens. */
+    .equipment-catalog-content .table-card .card-body > .d-flex.justify-content-between {
+        display: grid !important;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        align-items: stretch !important;
+    }
+
+    .equipment-catalog-content .table-card .card-body > .d-flex.justify-content-between > .d-flex.gap-2 {
+        display: grid !important;
+        grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+        width: 100%;
+        gap: 8px !important;
+    }
+
+    .equipment-catalog-content .table-card .card-body > .d-flex.justify-content-between > .d-flex.gap-2 .btn {
+        min-width: 0;
+        width: 100%;
+        min-height: 48px;
+        padding: 8px 10px;
+        line-height: 1.15;
+        white-space: normal;
+    }
+
+    .equipment-catalog-content > .d-flex.justify-content-end {
+        display: grid !important;
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .equipment-catalog-content > .d-flex.justify-content-end .btn {
+        width: 100%;
+        margin-left: 0 !important;
+    }
+}
+
+@media (max-width: 900px) {
     .sidebar-user {
-        width: 230px;
+        width: 205px;
         max-width: calc(100vw - 32px);
         margin-right: auto;
         margin-left: auto;
@@ -3877,7 +3914,9 @@ body {
     }
 
     .equipment-catalog-content .input-group .form-control {
+        display: block;
         min-width: 0;
+        width: 100%;
     }
 
     .equipment-catalog-content .table-card {
@@ -3887,7 +3926,7 @@ body {
 
 @media (max-width: 520px) {
     .sidebar-user {
-        width: 210px;
+        width: 185px;
         max-width: calc(100vw - 28px);
         padding: 8px 10px;
     }
@@ -3903,6 +3942,15 @@ body {
 
     .sidebar-user-role {
         font-size: 0.52rem;
+    }
+
+    .topbar-account-toggle {
+        min-width: 176px;
+        padding-right: 7px;
+    }
+
+    .topbar-account-copy {
+        max-width: 92px;
     }
 }
 
