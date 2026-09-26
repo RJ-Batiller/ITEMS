@@ -18,7 +18,7 @@ EQUIPMENT_STATUS_GROUPS = {
 EQUIPMENT_ACTION_GROUPS = {
     "Create": ("Created", "Requested/Create", "Approved/Create", "Rejected/Create"),
     "Update": ("Updated", "Requested/Edit", "Approved/Edit", "Rejected/Edit"),
-    "Assign": ("Assigned", "Re-Assigned", "Requested/Assign", "Approved/Assign", "Rejected/Assign"),
+    "Assign": ("Assigned", "Re-Assigned", "Requested/Assign", "Requested/Re-Assign", "Approved/Assign", "Approved/Re-Assign", "Rejected/Assign", "Rejected/Re-Assign"),
     "Unassign": ("Unassigned",),
     "Maintenance Start": ("Maintenance", "Requested/Maintenance Start", "Approved/Maintenance Start", "Rejected/Maintenance Start"),
     "Maintenance Complete": ("Repair", "Requested/Maintenance Complete", "Approved/Maintenance Complete", "Rejected/Maintenance Complete"),
@@ -184,6 +184,45 @@ def transactions():
         date_to=date_to or "",
         transaction_actions=transaction_actions
     )
+
+
+@app.route("/transactions/<int:transaction_id>")
+@login_required
+def transaction_detail(transaction_id):
+    conn = db()
+    cur = conn.cursor(dictionary=True)
+
+    scope = "(t.user_id = %s OR e.created_by = %s)" if is_staff_role(g.current_user["role_name"]) else "1 = 1"
+    params = [transaction_id]
+    if is_staff_role(g.current_user["role_name"]):
+        params.extend([g.current_user["id"], g.current_user["id"]])
+
+    cur.execute(f"""
+        SELECT
+            t.*,
+            e.id AS equipment_id,
+            e.asset_code,
+            e.name AS equipment_name,
+            e.serial_number,
+            u.full_name
+        FROM transactions t
+        JOIN equipment e ON e.id = t.equipment_id
+        JOIN users u ON u.id = t.user_id
+        WHERE t.id = %s AND {scope}
+    """, params)
+    transaction = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not transaction:
+        return render_template(
+            "error.html",
+            code=404,
+            title="Transaction not found",
+            message="This transaction does not exist or is not available to your account.",
+        ), 404
+
+    return render_template("transaction_view.html", transaction=transaction)
 
 
 # ============================================================
@@ -866,19 +905,21 @@ def equipment_qr(item_id):
 
     cur.execute("""
         SELECT
-            id,
-            asset_code,
-            name
-        FROM equipment
-        WHERE id = %s
+            e.id,
+            e.asset_code,
+            e.name,
+            e.created_by,
+            a.accountable_user_id
+        FROM equipment e
+        LEFT JOIN accountability a
+            ON a.equipment_id = e.id AND a.is_current = 1
+        WHERE e.id = %s
     """, (item_id,))
 
     equipment = cur.fetchone()
 
     if equipment and is_staff_role(g.current_user["role_name"]):
-        cur.execute("SELECT created_by FROM equipment WHERE id = %s", (item_id,))
-        owner = cur.fetchone()
-        if not owner or owner["created_by"] != g.current_user["id"]:
+        if equipment["created_by"] != g.current_user["id"] and equipment["accountable_user_id"] != g.current_user["id"]:
             equipment = None
 
     cur.close()
@@ -900,15 +941,15 @@ def equipment_qr_image(item_id):
     cur = conn.cursor(dictionary=True)
 
     cur.execute("""
-        SELECT id, asset_code
-        FROM equipment
-        WHERE id = %s
+        SELECT e.id, e.asset_code, e.created_by, a.accountable_user_id
+        FROM equipment e
+        LEFT JOIN accountability a
+            ON a.equipment_id = e.id AND a.is_current = 1
+        WHERE e.id = %s
     """, (item_id,))
     equipment = cur.fetchone()
     if equipment and is_staff_role(g.current_user["role_name"]):
-        cur.execute("SELECT created_by FROM equipment WHERE id = %s", (item_id,))
-        owner = cur.fetchone()
-        if not owner or owner["created_by"] != g.current_user["id"]:
+        if equipment["created_by"] != g.current_user["id"] and equipment["accountable_user_id"] != g.current_user["id"]:
             equipment = None
     cur.close()
     conn.close()
@@ -944,7 +985,9 @@ def equipment_qr_print(item_id):
             e.name,
             e.serial_number,
             e.status,
+            e.created_by,
             a.person_name AS accountable_person,
+            a.accountable_user_id,
             a.assigned_at AS accountable_assigned_at,
             ao.name AS accountable_office_name
         FROM equipment e
@@ -958,9 +1001,7 @@ def equipment_qr_print(item_id):
 
     equipment = cur.fetchone()
     if equipment and is_staff_role(g.current_user["role_name"]):
-        cur.execute("SELECT created_by FROM equipment WHERE id = %s", (item_id,))
-        owner = cur.fetchone()
-        if not owner or owner["created_by"] != g.current_user["id"]:
+        if equipment["created_by"] != g.current_user["id"] and equipment["accountable_user_id"] != g.current_user["id"]:
             equipment = None
     cur.close()
     conn.close()

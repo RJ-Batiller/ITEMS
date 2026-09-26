@@ -16,7 +16,15 @@ def test_security_headers_are_present(client):
     assert response.status_code == 200
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
+    assert response.headers["Permissions-Policy"] == "camera=(self), microphone=(), geolocation=()"
     assert "Content-Security-Policy" in response.headers
+
+
+def test_hsts_is_only_sent_for_https_requests(client):
+    response = client.get("/login", base_url="https://localhost")
+
+    assert response.status_code == 200
+    assert "max-age=31536000" in response.headers["Strict-Transport-Security"]
 
 
 def test_post_without_csrf_token_is_rejected(client):
@@ -54,3 +62,12 @@ def test_email_validation_rejects_malformed_values():
     assert optional_email("admin@example.com") == "admin@example.com"
     with pytest.raises(ValueError):
         optional_email("not-an-email")
+
+
+def test_staff_feature_permissions_override_role_defaults():
+    from app import can_perform_action
+
+    assert can_perform_action("Staff", "edit", {"edit": False}) is False
+    assert can_perform_action("Staff", "edit", {"edit": True}) is True
+    assert can_perform_action("Staff", "view_all_equipment", {}) is False
+    assert can_perform_action("Admin", "view_all_equipment", {}) is True

@@ -72,6 +72,7 @@ app = Flask(__name__)
 app.secret_key = require_secret_key()
 app.config.update(
     DEBUG=Config.DEBUG,
+    TEMPLATES_AUTO_RELOAD=Config.DEBUG,
     SESSION_COOKIE_HTTPONLY=Config.SESSION_COOKIE_HTTPONLY,
     SESSION_COOKIE_SAMESITE=Config.SESSION_COOKIE_SAMESITE,
     SESSION_COOKIE_SECURE=Config.SESSION_COOKIE_SECURE,
@@ -138,32 +139,49 @@ def inject_sidebar_notifications():
             """, (user_id, user_id))
         notifications["unread_messages"] = cur.fetchone()["total"]
 
+        requests_seen_at = session.get("requests_seen_at")
+        request_created_filter = " AND created_at > %s" if requests_seen_at else ""
+        request_params = (requests_seen_at,) if requests_seen_at else ()
+
         if role in MANAGEMENT_ROLES:
-            cur.execute("SELECT COUNT(*) AS total FROM equipment WHERE approval_status = 'Pending'")
+            cur.execute(
+                "SELECT COUNT(*) AS total FROM equipment "
+                "WHERE approval_status = 'Pending'" + request_created_filter,
+                request_params,
+            )
             equipment_count = cur.fetchone()["total"]
-            cur.execute("SELECT COUNT(*) AS total FROM equipment_action_requests WHERE status = 'Pending'")
+            cur.execute(
+                "SELECT COUNT(*) AS total FROM equipment_action_requests "
+                "WHERE status = 'Pending'" + request_created_filter,
+                request_params,
+            )
             action_count = cur.fetchone()["total"]
-            cur.execute("SELECT COUNT(*) AS total FROM organization_requests WHERE status = 'Pending'")
+            cur.execute(
+                "SELECT COUNT(*) AS total FROM organization_requests "
+                "WHERE status = 'Pending'" + request_created_filter,
+                request_params,
+            )
             organization_count = cur.fetchone()["total"]
             notifications["pending_requests"] = equipment_count + action_count + organization_count
         elif role == STAFF_ROLE:
-            cur.execute("""
-                SELECT COUNT(*) AS total
-                FROM equipment
-                WHERE created_by = %s AND approval_status = 'Pending'
-            """, (user_id,))
+            staff_params = (user_id,) + request_params
+            cur.execute(
+                "SELECT COUNT(*) AS total FROM equipment "
+                "WHERE created_by = %s AND approval_status = 'Pending'" + request_created_filter,
+                staff_params,
+            )
             equipment_count = cur.fetchone()["total"]
-            cur.execute("""
-                SELECT COUNT(*) AS total
-                FROM equipment_action_requests
-                WHERE requested_by = %s AND status = 'Pending'
-            """, (user_id,))
+            cur.execute(
+                "SELECT COUNT(*) AS total FROM equipment_action_requests "
+                "WHERE requested_by = %s AND status = 'Pending'" + request_created_filter,
+                staff_params,
+            )
             action_count = cur.fetchone()["total"]
-            cur.execute("""
-                SELECT COUNT(*) AS total
-                FROM organization_requests
-                WHERE requested_by = %s AND status = 'Pending'
-            """, (user_id,))
+            cur.execute(
+                "SELECT COUNT(*) AS total FROM organization_requests "
+                "WHERE requested_by = %s AND status = 'Pending'" + request_created_filter,
+                staff_params,
+            )
             organization_count = cur.fetchone()["total"]
             notifications["pending_requests"] = equipment_count + action_count + organization_count
     except mysql.connector.Error:
@@ -197,6 +215,9 @@ def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")
+    if request.is_secure:
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     response.headers.setdefault("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; frame-ancestors 'self'")
     return response
 
@@ -300,6 +321,7 @@ RESTRICTABLE_FEATURES = (
     ("categories", "Manage categories"),
     ("offices", "Manage offices"),
     ("messages", "Manage message groups"),
+    ("view_all_equipment", "View all equipment"),
 )
 
 
@@ -406,6 +428,8 @@ def role_allows_action(role_name, action):
     if action in {"categories", "offices", "messages"}:
         return role in MANAGEMENT_ROLES
     if action == "requests":
+        return role in MANAGEMENT_ROLES
+    if action == "view_all_equipment":
         return role in MANAGEMENT_ROLES
     if action == "add" and role == STAFF_ROLE:
         return True
@@ -585,8 +609,6 @@ def admin_required(action="edit", allow_staff=False):
 
             g.current_user = user
             sync_session_user(user)
-            if allow_staff and is_staff_role(user["role_name"]):
-                return fn(*args, **kwargs)
             if not can_perform_action(user["role_name"], action, user.get("feature_permissions")):
 
                 flash(

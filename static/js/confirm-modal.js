@@ -30,6 +30,7 @@
         close();
         if (type === "submit") {
             action.removeAttribute("onsubmit");
+            action.removeAttribute("data-confirm-message");
             if (action.requestSubmit) action.requestSubmit();
             else HTMLFormElement.prototype.submit.call(action);
         } else {
@@ -38,30 +39,41 @@
         }
     }
 
-    function open(element, type, handler) {
+    function open(element, type, handler, message) {
         pending = { element: element, type: type };
-        messageNode.textContent = getMessage(handler);
+        messageNode.textContent = message || getMessage(handler);
         modal.hidden = false;
         cancelButton.focus();
     }
 
+    // Expose a direct fallback for submit buttons in case another script stops event delegation.
+    window.AppConfirmSubmit = function (button) {
+        var form = button && button.form;
+        if (!form) return true;
+        open(form, "submit", null, button.dataset.confirmMessage || form.dataset.confirmMessage);
+        return false;
+    };
+
     document.addEventListener("submit", function (event) {
         var form = event.target;
         var handler = form.getAttribute("onsubmit");
-        if (!handler || handler.indexOf("confirm(") === -1) return;
+        var message = form.dataset.confirmMessage;
+        if ((!handler || handler.indexOf("confirm(") === -1) && !message) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        open(form, "submit", handler);
+        open(form, "submit", handler, message);
     }, true);
 
     document.addEventListener("click", function (event) {
-        var button = event.target.closest("[onclick]");
+        var button = event.target.closest("[onclick], button[type=submit], input[type=submit]");
         if (!button) return;
         var handler = button.getAttribute("onclick");
-        if (handler.indexOf("confirm(") === -1) return;
+        var form = button.form;
+        var message = (form && form.dataset.confirmMessage) || button.dataset.confirmMessage;
+        if ((!handler || handler.indexOf("confirm(") === -1) && !message) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        open(button, "click", handler);
+        open(form || button, form ? "submit" : "click", handler, message);
     }, true);
 
     cancelButton.addEventListener("click", close);

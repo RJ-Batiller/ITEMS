@@ -44,6 +44,7 @@
             </form>
         </div>
         {% endif %}
+        <a href="{{ url_for('equipment_requests') if can_review else url_for('my_equipment_requests') }}" class="btn btn-cancel mt-3">Back to Requests</a>
     </div>
 </div>
 {% endblock %}

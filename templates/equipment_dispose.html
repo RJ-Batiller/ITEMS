@@ -7,7 +7,7 @@
             <h2 class="mb-1">Dispose Equipment</h2>
             <p class="text-muted mb-0">Record the disposal details for this equipment.</p>
         </div>
-        <a href="{{ url_for('view_equipment', item_id=equipment.id) }}" class="btn btn-cancel">Cancel</a>
+        <a href="{{ url_for('equipment', item_id=equipment.id) }}" class="btn btn-cancel">Cancel</a>
     </div>
 
     <div class="card shadow-sm">
@@ -21,7 +21,7 @@
                 <dd class="col-sm-9"><span class="status-badge status-{{ equipment.status | lower | replace(' ', '-') }}">{{ equipment.status }}</span></dd>
             </dl>
 
-            <form method="post" action="{{ url_for('dispose_equipment', item_id=equipment.id) }}">
+            <form method="post" action="{{ url_for('dispose_equipment', item_id=equipment.id) }}" data-confirm-message="Dispose this equipment permanently?">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label for="reason" class="form-label">Reason</label>
@@ -35,7 +35,7 @@
                     <label for="reference_no" class="form-label">Reference Number <span class="text-muted">(optional)</span></label>
                     <input id="reference_no" name="reference_no" type="text" class="form-control">
                 </div>
-                <button type="submit" class="btn btn-confirm-danger" onclick="return confirm('Dispose this equipment permanently?')">Record Disposal</button>
+                <button type="submit" class="btn btn-confirm-danger">Record Disposal</button>
             </form>
         </div>
     </div>

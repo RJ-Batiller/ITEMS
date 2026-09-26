@@ -87,13 +87,10 @@
 
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Add Equipment</h5>
-            <button
-                type="submit"
-                form="add-equipment-form"
-                class="btn btn-primary px-4"
-            >
-                Add Equipment
-            </button>
+            <div class="d-flex gap-2">
+                <button type="button" id="clear-add-equipment" class="btn btn-outline-secondary">Clear</button>
+                <button type="submit" form="add-equipment-form" class="btn btn-primary px-4">Add Equipment</button>
+            </div>
         </div>
 
         <form
@@ -139,17 +136,29 @@
             </div>
 
             <div class="col-md-3">
-                <select class="form-select" name="category_id" required>
-                    <option value="" selected disabled>Category</option>
-                    {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
-                </select>
+                <div class="searchable-select" data-searchable-select>
+                    <input type="hidden" name="category_id" data-selected-value>
+                    <input type="search" class="form-control" data-search-input placeholder="Category" autocomplete="off" required>
+                    <div class="searchable-select-options" data-options hidden role="listbox">
+                        {% for c in categories %}
+                        <button type="button" data-option-value="{{ c.id }}" role="option">{{ c.name }}</button>
+                        {% endfor %}
+                        <div class="searchable-select-empty" data-empty hidden>No matching category.</div>
+                    </div>
+                </div>
             </div>
 
             <div class="col-md-3">
-                <select class="form-select" name="office_id" required>
-                    <option value="" selected disabled>Office</option>
-                    {% for o in offices %}<option value="{{ o.id }}">{{ o.name }}</option>{% endfor %}
-                </select>
+                <div class="searchable-select" data-searchable-select>
+                    <input type="hidden" name="office_id" data-selected-value>
+                    <input type="search" class="form-control" data-search-input placeholder="Office" autocomplete="off" required>
+                    <div class="searchable-select-options" data-options hidden role="listbox">
+                        {% for o in offices %}
+                        <button type="button" data-option-value="{{ o.id }}" role="option">{{ o.name }}</button>
+                        {% endfor %}
+                        <div class="searchable-select-empty" data-empty hidden>No matching office.</div>
+                    </div>
+                </div>
             </div>
 
             <div class="col-md-3">
@@ -218,7 +227,7 @@
         class="form-control"
         name="q"
         value="{{ q }}"
-        placeholder="Search this catalog"
+        placeholder="Search property, equipment, office, status, or creator"
     >
 
     {% if selected_category_id %}
@@ -226,13 +235,7 @@
     {% endif %}
     {% if selected_item_type %}<input type="hidden" name="type" value="{{ selected_item_type }}">{% endif %}
 
-    <button
-        type="submit"
-        class="btn btn-outline-primary"
-    >
-        Search
-    </button>
-
+<button class="btn btn-primary" type="submit">Search</button>
 </form>
 
 <form class="card shadow-sm mb-3 catalog-filters" method="get" action="{{ url_for('equipment') }}">
@@ -385,8 +388,9 @@
                             <!-- EDIT
                                  HIDDEN FOR WORKER -->
 
-                            {% if not is_staff_role(session.get('role', '')) or e.created_by == session.get('user_id') %}
+                            {% if not is_staff_role(session.get('role', '')) or e.created_by == session.get('user_id') or e.accountable_user_id == session.get('user_id') %}
 
+                            {% if (not is_staff_role(session.get('role', '')) or e.created_by == session.get('user_id') or e.accountable_user_id == session.get('user_id')) and user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'edit') %}
                             {% if e.status != 'Disposed' %}
                             <a
                                 href="{{ url_for(
@@ -398,12 +402,13 @@
                                 Edit
                             </a>
                             {% endif %}
+                            {% endif %}
 
 
                             <!-- ASSIGN
                                  HIDDEN FOR WORKER -->
 
-                            {% if not is_staff_role(session.get('role', '')) or e.approval_status == 'Approved' %}
+                            {% if (not is_staff_role(session.get('role', '')) or e.approval_status == 'Approved') and user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'assign') %}
                             {% if e.status not in ['Under Maintenance', 'Archived', 'Disposed'] %}
                             <a
                                 href="{{ url_for(
@@ -423,7 +428,7 @@
                             </form>
                             {% endif %}
 
-                            {% if e.status in ['Available', 'Under Maintenance'] or (is_staff_role(session.get('role', '')) and e.status == 'Assigned' and e.approval_status == 'Approved') %}
+                            {% if (e.status in ['Available', 'Under Maintenance'] or (is_staff_role(session.get('role', '')) and e.status == 'Assigned' and e.approval_status == 'Approved')) and user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'maintenance') %}
                             <a
                                 href="{{ url_for(
                                     'equipment_maintenance',
@@ -457,15 +462,15 @@
                             <!-- ARCHIVE
                                  HIDDEN FOR WORKER -->
 
-                            {% if not is_staff_role(session.get('role', '')) or (e.created_by == session.get('user_id') and e.approval_status == 'Approved') %}
+                            {% if (not is_staff_role(session.get('role', '')) or (e.approval_status == 'Approved' and (e.created_by == session.get('user_id') or e.accountable_user_id == session.get('user_id'))) ) and (user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'archive') or user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'dispose')) %}
 
                                 {% if e.status == 'Archived' %}
                                 {% if not is_staff_role(session.get('role', '')) %}
                                 <form
                                     method="post"
                                     action="{{ url_for('restore_equipment', item_id=e.id) }}"
-                                    style="display:inline;"
-                                    onsubmit="return confirm('Restore this archived equipment and mark it available?');"
+                                    class="equipment-action-form"
+                                    data-confirm-message="Restore this archived equipment and mark it available?"
                                 >
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm btn-outline-success">Restore</button>
@@ -473,9 +478,11 @@
                                 {% endif %}
                                 {% elif e.status not in ['Disposed', 'Under Maintenance'] %}
 
+                                {% if user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'archive') %}
                                 <a href="{{ url_for('archive_equipment', item_id=e.id) }}" class="btn btn-sm btn-outline-secondary">Archive</a>
+                                {% endif %}
 
-                                {% if e.status != 'Disposed' %}
+                                {% if e.status != 'Disposed' and user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'dispose') %}
                                 <a
                                     href="{{ url_for(
                                         'dispose_equipment',
@@ -526,3 +533,85 @@
 
 {% endblock %}
 
+{% block scripts %}
+<script>
+(function () {
+    var button = document.getElementById("clear-add-equipment");
+    var form = document.getElementById("add-equipment-form");
+    if (!button || !form) return;
+
+    button.addEventListener("click", function () {
+        form.reset();
+        var draftPrefix = "items-form-draft:" + window.location.pathname + ":add-equipment-form";
+        Object.keys(sessionStorage).forEach(function (key) {
+            if (key.indexOf(draftPrefix) === 0) sessionStorage.removeItem(key);
+        });
+    });
+}());
+
+(function () {
+    document.querySelectorAll("[data-searchable-select]").forEach(function (select) {
+        var valueInput = select.querySelector("[data-selected-value]");
+        var searchInput = select.querySelector("[data-search-input]");
+        var optionsPanel = select.querySelector("[data-options]");
+        var options = Array.from(optionsPanel.querySelectorAll("[data-option-value]"));
+        var empty = optionsPanel.querySelector("[data-empty]");
+
+        function filterOptions() {
+            var query = searchInput.value.trim().toLowerCase();
+            var visible = 0;
+            options.forEach(function (option) {
+                var matches = !query || option.textContent.toLowerCase().includes(query);
+                option.hidden = !matches;
+                if (matches) visible += 1;
+            });
+            empty.hidden = visible !== 0;
+        }
+
+        function setExpanded(expanded) {
+            optionsPanel.hidden = !expanded;
+            searchInput.setAttribute("aria-expanded", expanded ? "true" : "false");
+        }
+
+        function choose(option) {
+            valueInput.value = option.dataset.optionValue;
+            searchInput.value = option.textContent.trim();
+            searchInput.setCustomValidity("");
+            setExpanded(false);
+        }
+
+        function validateSelection() {
+            searchInput.setCustomValidity(valueInput.value ? "" : "Choose an option from the list.");
+        }
+
+        searchInput.setAttribute("role", "combobox");
+        searchInput.setAttribute("aria-expanded", "false");
+        searchInput.setAttribute("aria-controls", optionsPanel.id || "");
+        searchInput.addEventListener("focus", function () {
+            setExpanded(true);
+            filterOptions();
+        });
+        searchInput.addEventListener("input", function () {
+            valueInput.value = "";
+            validateSelection();
+            setExpanded(true);
+            filterOptions();
+        });
+        searchInput.addEventListener("blur", validateSelection);
+        searchInput.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") setExpanded(false);
+            if (event.key === "ArrowDown" && !optionsPanel.hidden) {
+                var first = options.find(function (option) { return !option.hidden; });
+                if (first) first.focus();
+            }
+        });
+        options.forEach(function (option) {
+            option.addEventListener("click", function () { choose(option); });
+        });
+        document.addEventListener("click", function (event) {
+            if (!select.contains(event.target)) setExpanded(false);
+        });
+    });
+}());
+</script>
+{% endblock %}

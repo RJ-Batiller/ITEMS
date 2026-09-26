@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-heading d-flex justify-content-between align-items-end mb-4">
+    <div>
+        <div class="catalog-kicker">Audit trail</div>
+        <h1>Transaction Details</h1>
+        <p class="text-muted mb-0">Complete reason, remarks, and recorded changes.</p>
+    </div>
+    <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary">Back to Transactions</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="text-muted small">Date and time</div>
+                <div>{{ transaction.created_at }}</div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted small">Action</div>
+                <span class="badge transaction-badge transaction-{{ transaction.action | lower | replace(' ', '-') | replace('/', '-') }}">{{ transaction.action }}</span>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted small">Property Number</div>
+                <div class="fw-semibold">{{ transaction.asset_code }}</div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted small">Equipment</div>
+                <div class="fw-semibold">{{ transaction.equipment_name }}</div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted small">Serial Number</div>
+                <div>{{ transaction.serial_number or '-' }}</div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted small">Recorded by</div>
+                <div>{{ transaction.full_name }}</div>
+            </div>
+            <div class="col-12">
+                <div class="text-muted small mb-2">Reason, remarks, and changes</div>
+                {% if transaction.details and ('Changed fields:' in transaction.details or 'Requested changes:' in transaction.details or 'Changes made:' in transaction.details) %}
+                <div class="transaction-detail-text transaction-change-list">
+                    <div class="transaction-change-heading">Changes made</div>
+                    {% for line in transaction.details.split('\n') %}
+                    {% if line.strip().startswith('- ') %}
+                    <div class="transaction-change-row">{{ line.lstrip('- ') }}</div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="transaction-detail-text">{{ transaction.details or 'No additional details were recorded.' }}</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="mt-4 d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('view_equipment', item_id=transaction.equipment_id) }}" class="btn btn-primary">View Equipment</a>
+            <a href="{{ url_for('equipment_transactions', item_id=transaction.equipment_id) }}" class="btn btn-outline-secondary">Equipment History</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

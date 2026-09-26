@@ -129,8 +129,50 @@
                 <!-- Person -->
                 <div class="mb-3">
 
-                    <label for="person_name" class="form-label">
-                        Person
+                    <label for="accountable_user_id" class="form-label">
+                        Staff account <span class="text-muted small">(optional)</span>
+                    </label>
+
+                    <div class="staff-account-combobox" data-staff-combobox>
+                        <input
+                            type="hidden"
+                            name="accountable_user_id"
+                            id="accountable_user_id"
+                            value="{{ accountable.accountable_user_id if accountable and accountable.accountable_user_id else '' }}"
+                        >
+                        <input
+                            type="search"
+                            id="staff-account-search"
+                            class="form-control border rounded-2"
+                            placeholder="Search staff account or choose manual assignment"
+                            autocomplete="off"
+                            role="combobox"
+                            aria-controls="staff-account-options"
+                            aria-expanded="false"
+                        >
+                        <div id="staff-account-options" class="staff-account-options" role="listbox" hidden>
+                            <button type="button" class="staff-account-option" data-user-id="" data-full-name="" role="option">
+                                No account / manual assignment
+                            </button>
+                            {% for staff in staff_users %}
+                            <button
+                                type="button"
+                                class="staff-account-option"
+                                data-user-id="{{ staff.id }}"
+                                data-full-name="{{ staff.full_name }}"
+                                data-search="{{ staff.full_name }} {{ staff.username }}"
+                                role="option"
+                            >
+                                <strong>{{ staff.full_name }}</strong>
+                                <span>{{ staff.username }}</span>
+                            </button>
+                            {% endfor %}
+                            <div class="staff-account-empty" hidden>No matching Staff account.</div>
+                        </div>
+                    </div>
+
+                    <label for="person_name" class="form-label mt-3">
+                        Person name
                     </label>
 
                     <input
@@ -138,6 +180,7 @@
                         name="person_name"
                         id="person_name"
                         class="form-control border rounded-2"
+                        value="{{ accountable.person_name if accountable else '' }}"
                         placeholder="Enter person's full name"
                         required
                     >
@@ -234,4 +277,88 @@
 
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var combobox = document.querySelector("[data-staff-combobox]");
+    var account = document.getElementById("accountable_user_id");
+    var search = document.getElementById("staff-account-search");
+    var optionsPanel = document.getElementById("staff-account-options");
+    var name = document.getElementById("person_name");
+    if (!combobox || !account || !search || !optionsPanel || !name) return;
+
+    var options = Array.from(optionsPanel.querySelectorAll(".staff-account-option"));
+    var emptyState = optionsPanel.querySelector(".staff-account-empty");
+    var selectedId = account.value;
+
+    function selectedOption() {
+        return options.find(function (option) {
+            return option.dataset.userId === selectedId;
+        });
+    }
+
+    function setExpanded(expanded) {
+        optionsPanel.hidden = !expanded;
+        search.setAttribute("aria-expanded", expanded ? "true" : "false");
+    }
+
+    function filterOptions() {
+        var query = search.value.trim().toLowerCase();
+        var visibleCount = 0;
+        options.forEach(function (option) {
+            var matches = !query || (option.dataset.search || option.textContent).toLowerCase().includes(query);
+            option.hidden = !matches;
+            if (matches) visibleCount += 1;
+        });
+        emptyState.hidden = visibleCount !== 0;
+    }
+
+    function chooseOption(option) {
+        selectedId = option.dataset.userId || "";
+        account.value = selectedId;
+        search.value = selectedId ? option.textContent.trim().replace(/\s+/g, " ") : "";
+        if (selectedId) {
+            name.value = option.dataset.fullName || name.value;
+            name.readOnly = true;
+        } else {
+            name.readOnly = false;
+        }
+        setExpanded(false);
+        filterOptions();
+    }
+
+    search.addEventListener("focus", function () {
+        setExpanded(true);
+        filterOptions();
+    });
+    search.addEventListener("input", function () {
+        // Typing a custom name switches back to manual assignment.
+        selectedId = "";
+        account.value = "";
+        name.readOnly = false;
+        setExpanded(true);
+        filterOptions();
+    });
+    search.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+            setExpanded(false);
+        }
+        if (event.key === "ArrowDown" && optionsPanel.hidden === false) {
+            var firstVisible = options.find(function (option) { return !option.hidden; });
+            if (firstVisible) firstVisible.focus();
+        }
+    });
+    options.forEach(function (option) {
+        option.addEventListener("click", function () { chooseOption(option); });
+    });
+    document.addEventListener("click", function (event) {
+        if (!combobox.contains(event.target)) setExpanded(false);
+    });
+
+    var initialOption = selectedOption();
+    if (initialOption) chooseOption(initialOption);
+}());
+</script>
 {% endblock %}

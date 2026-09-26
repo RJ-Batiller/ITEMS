@@ -109,7 +109,7 @@
                     </td>
 
                     <td>
-                        {{ t.details }}
+                        <a href="{{ url_for('transaction_detail', transaction_id=t.id) }}" class="btn btn-sm btn-outline-primary">View</a>
                     </td>
 
                     <td>

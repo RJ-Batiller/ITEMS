@@ -14,11 +14,32 @@
     </div>
 </section>
 
-<div class="dashboard-metric-grid">
-    <div class="card dashboard-metric dashboard-metric-primary"><div class="card-body"><span class="dashboard-metric-eyebrow">Active inventory</span><strong>{{ total }}</strong><span class="dashboard-metric-note">Items in circulation</span><span class="dashboard-metric-symbol"></span></div></div>
-    <div class="card dashboard-metric dashboard-metric-ready"><div class="card-body"><span class="dashboard-metric-eyebrow">Ready now</span><strong>{{ available }}</strong><span class="dashboard-metric-note">Available for assignment</span><span class="dashboard-metric-symbol"></span></div></div>
-    <div class="card dashboard-metric dashboard-metric-assigned"><div class="card-body"><span class="dashboard-metric-eyebrow">Accountable</span><strong>{{ assigned }}</strong><span class="dashboard-metric-note">Currently assigned</span><span class="dashboard-metric-symbol"></span></div></div>
-    <div class="card dashboard-metric dashboard-metric-alert"><div class="card-body"><span class="dashboard-metric-eyebrow">Attention queue</span><strong>{{ maintenance }}</strong><span class="dashboard-metric-note">Under maintenance</span><span class="dashboard-metric-symbol"></span></div></div>
+<div class="equipment-metric-grid dashboard-equipment-metrics" aria-label="Inventory summary">
+    <div class="equipment-metric equipment-metric-featured">
+        <span class="equipment-metric-eyebrow">All Equipment</span>
+        <strong>{{ all_equipment }}</strong>
+        <span>Items in the catalog</span>
+    </div>
+    <div class="equipment-metric">
+        <span class="equipment-metric-eyebrow">Active Inventory</span>
+        <strong>{{ total }}</strong>
+        <span>Items in circulation</span>
+    </div>
+    <div class="equipment-metric">
+        <span class="equipment-metric-eyebrow">Ready Now</span>
+        <strong>{{ available }}</strong>
+        <span>Available for assignment</span>
+    </div>
+    <div class="equipment-metric">
+        <span class="equipment-metric-eyebrow">Accountable</span>
+        <strong>{{ assigned }}</strong>
+        <span>Currently assigned</span>
+    </div>
+    <div class="equipment-metric">
+        <span class="equipment-metric-eyebrow">Attention Queue</span>
+        <strong>{{ maintenance }}</strong>
+        <span>Under maintenance</span>
+    </div>
 </div>
 
 <div class="dashboard-insight-grid">
@@ -38,7 +59,7 @@
 
 <div class="dashboard-distribution-grid">
     <section class="card dashboard-panel"><div class="card-body"><div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Catalog topology</p><h2>Equipment by category</h2></div><a class="dashboard-panel-link-inline" href="{{ url_for('categories') }}">Manage</a></div><div class="dashboard-ranking-list">{% for item in category_breakdown %}<div class="dashboard-ranking-row"><div><span>{{ item.name }}</span><strong>{{ item.equipment_count }}</strong></div><div class="dashboard-ranking-track"><i data-dashboard-width="{{ (item.equipment_count / category_max * 100)|round|int if category_max else 0 }}"></i></div></div>{% else %}<div class="dashboard-empty">No categories yet.</div>{% endfor %}</div></div></section>
-    <section class="card dashboard-panel"><div class="card-body"><div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Accountability map</p><h2>Equipment by office</h2></div><a class="dashboard-panel-link-inline" href="{{ url_for('offices') }}">Manage</a></div><div class="dashboard-ranking-list">{% for item in office_breakdown %}<div class="dashboard-ranking-row"><div><span>{{ item.name }}</span><strong>{{ item.equipment_count }}</strong></div><div class="dashboard-ranking-track dashboard-ranking-track-blue"><i data-dashboard-width="{{ (item.equipment_count / office_max * 100)|round|int if office_max else 0 }}"></i></div></div>{% else %}<div class="dashboard-empty">No offices yet.</div>{% endfor %}</div></div></section>
+    <section class="card dashboard-panel"><div class="card-body"><div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Accountability map</p><h2>Equipment by office</h2></div><a class="dashboard-panel-link-inline" href="{{ url_for('offices') }}">Manage</a></div><div class="dashboard-ranking-list">{% for item in office_breakdown %}<div class="dashboard-ranking-row"><div><span>{{ item.name }}</span><strong>{{ item.equipment_count }}</strong></div><div class="dashboard-ranking-track dashboard-ranking-track-red"><i data-dashboard-width="{{ (item.equipment_count / office_max * 100)|round|int if office_max else 0 }}"></i></div></div>{% else %}<div class="dashboard-empty">No offices yet.</div>{% endfor %}</div></div></section>
 </div>
 
 <div class="row g-4 mt-1">

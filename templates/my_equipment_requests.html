@@ -4,7 +4,7 @@
 <div class="page-heading mb-4">
     <div class="catalog-kicker">Staff submissions</div>
     <h1>My Requests</h1>
-    <p class="text-muted mb-0">Track equipment and equipment changes waiting for administrative approval.</p>
+    <p class="text-muted mb-0">Track your equipment submissions and changes waiting for approval.</p>
 </div>
 
 <div class="card table-card shadow-sm mb-4">
@@ -20,7 +20,7 @@
                 <td>{{ item.name }}</td>
                 <td>{{ item.category_name or '-' }}</td>
                 <td>{{ item.office_name or '-' }}</td>
-                <td><span class="status-badge status-pending">Pending</span></td>
+                <td><span class="status-badge status-{{ item.approval_status|lower }}">{{ item.approval_status }}</span></td>
                 <td>{{ item.created_at }}</td>
                 <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('view_equipment', item_id=item.id) }}">View</a></td>
             </tr>
@@ -36,7 +36,7 @@
         <h2 class="h5 mb-3">Equipment action requests</h2>
         {% if action_requests %}
         <table class="table align-middle">
-            <thead><tr><th>Property Number</th><th>Equipment</th><th>Requested Action</th><th>Submitted</th><th>Details</th></tr></thead>
+            <thead><tr><th>Property Number</th><th>Equipment</th><th>Requested Action</th><th>Submitted</th><th>Status</th><th>Details</th><th>Actions</th></tr></thead>
             <tbody>
             {% for item in action_requests %}
             <tr>
@@ -44,11 +44,11 @@
                 <td>{{ item.equipment_name }}</td>
                 <td><span class="badge transaction-badge transaction-requested">{{ item.action_type }}</span></td>
                 <td>{{ item.created_at }}</td>
+                <td><span class="status-badge status-{{ item.status|lower }}">{{ item.status }}</span></td>
                 <td>
-                    {% for key, value in item.request_data.items() if key != 'csrf_token' %}
-                    <div><span class="text-muted">{{ key|replace('_', ' ')|title }}:</span> {{ value or '-' }}</div>
-                    {% else %}<span class="text-muted">No additional details.</span>{% endfor %}
+                    <span class="request-table-summary">Open the request to view the full reason and changes.</span>
                 </td>
+                <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('view_equipment_action_request', request_id=item.request_id) }}">View</a></td>
             </tr>
             {% endfor %}
             </tbody>
@@ -70,7 +70,7 @@
                 <td>{{ item.request_name }}</td>
                 <td>{{ item.request_description or '-' }}</td>
                 <td>{{ item.created_at }}</td>
-                <td><span class="status-badge status-pending">Pending</span></td>
+                <td><span class="status-badge status-{{ item.status|lower }}">{{ item.status }}</span></td>
             </tr>
             {% endfor %}
             </tbody>
@@ -78,4 +78,32 @@
         {% else %}<p class="text-muted mb-0">You have no category or office requests waiting for approval.</p>{% endif %}
     </div>
 </div>
+
+{% if recent_decisions %}
+<div class="card table-card shadow-sm mt-4">
+    <div class="card-body table-responsive equipment-table-scroll">
+        <h2 class="h5 mb-1">Recent decisions</h2>
+        <p class="text-muted small mb-3">Confirm each decision after reviewing the result.</p>
+        <table class="table align-middle">
+            <thead><tr><th>Request</th><th>Item</th><th>Decision</th><th>Reviewed</th><th>Action</th></tr></thead>
+            <tbody>
+            {% for item in recent_decisions %}
+            <tr>
+                <td>{{ item.request_type }}</td>
+                <td>{{ item.subject }}</td>
+                <td><span class="status-badge status-{{ item.status|lower }}">{{ item.status }}</span></td>
+                <td>{{ item.reviewed_at }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('confirm_my_request_decision', kind=item.confirm_kind, request_id=item.request_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-primary">Confirm</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

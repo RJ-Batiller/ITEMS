@@ -120,6 +120,7 @@ CREATE TABLE equipment (
     reviewed_by INT NULL,
     reviewed_at DATETIME NULL,
     review_details VARCHAR(500),
+    review_acknowledged_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
@@ -133,6 +134,7 @@ CREATE TABLE equipment (
 CREATE TABLE accountability (
     id INT AUTO_INCREMENT PRIMARY KEY,
     equipment_id INT NOT NULL,
+    accountable_user_id INT NULL,
     person_name VARCHAR(150) NOT NULL,
     person_position VARCHAR(150),
     office_id INT,
@@ -143,7 +145,9 @@ CREATE TABLE accountability (
         (IF(is_current = 1, equipment_id, NULL)) STORED,
     UNIQUE KEY uq_accountability_current (current_equipment_id),
     INDEX idx_accountability_equipment_current (equipment_id, is_current),
+    INDEX idx_accountability_user_current (accountable_user_id, is_current),
     FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE,
+    FOREIGN KEY (accountable_user_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE SET NULL
 );
 
@@ -170,6 +174,7 @@ CREATE TABLE equipment_action_requests (
     reviewed_by INT NULL,
     reviewed_at DATETIME NULL,
     review_details VARCHAR(500) NULL,
+    review_acknowledged_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_equipment_action_requests_status (status, created_at),
     INDEX idx_equipment_action_requests_equipment (equipment_id, created_at),
@@ -187,6 +192,7 @@ CREATE TABLE organization_requests (
     reviewed_by INT NULL,
     reviewed_at DATETIME NULL,
     review_details VARCHAR(500) NULL,
+    review_acknowledged_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_organization_requests_status (status, created_at),
     FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE CASCADE,
@@ -256,7 +262,9 @@ INSERT INTO schema_migrations (version) VALUES
 ('013_organization_requests.sql'),
 ('014_expand_organization_history.sql'),
 ('015_allow_combined_organization_actions.sql'),
-('016_add_login_tracking.sql');
+('016_add_login_tracking.sql'),
+('017_add_accountable_user.sql'),
+('018_add_request_acknowledgement.sql');
 
 INSERT INTO offices(name,description) VALUES
 ('Institute of Computing Studies','Sample office'),

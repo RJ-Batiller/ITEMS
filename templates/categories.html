@@ -1,9 +1,106 @@
-{% extends "base.html" %}{% block content %}
-<div class="page-heading"><div class="catalog-kicker">Inventory structure</div><h1>Categories</h1><p class="text-muted mb-0">Search, organize, and review changes to catalog categories.</p></div>
-<div class="card shadow-sm mb-3"><div class="card-body"><form method="get" action="{{ url_for('categories') }}" class="row g-2"><div class="col-md-10"><label class="visually-hidden" for="category-search">Search categories</label><input class="form-control" id="category-search" name="q" value="{{ q }}" placeholder="Search by category name or description"></div><div class="col-md-2"><button class="btn btn-outline-primary w-100" type="submit">Search</button></div></form>{% if q %}<div class="mt-2"><a class="small text-decoration-none" href="{{ url_for('categories') }}">Clear filters</a></div>{% endif %}</div></div>
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-heading">
+    <div class="catalog-kicker">Inventory structure</div>
+    <h1>Categories</h1>
+    <p class="text-muted mb-0">Search, organize, and review changes to catalog categories.</p>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('categories') }}" class="row g-2">
+            <div class="col-md-10">
+                <label class="visually-hidden" for="category-search">Search categories</label>
+                <input class="form-control" id="category-search" name="q" value="{{ q }}" placeholder="Search by category name or description">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-primary w-100" type="submit">Search</button>
+            </div>
+        </form>
+        {% if q %}
+        <div class="mt-2">
+            <a class="small text-decoration-none" href="{{ url_for('categories') }}">Clear filters</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 {% set can_manage_categories = user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'categories') %}
 {% set can_request_categories = is_staff_role(g.current_user.role_name) %}
 {% set show_category_controls = can_manage_categories or can_request_categories %}
-{% if can_manage_categories or can_request_categories %}<div class="card shadow-sm mb-3"><div class="card-body"><form method="post" action="{{ url_for('add_category') }}" class="row g-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="col-md-4"><label class="visually-hidden" for="category-name">Category name</label><input class="form-control" id="category-name" name="name" placeholder="Category name" maxlength="100" required></div><div class="col-md-6"><label class="visually-hidden" for="category-description">Description</label><input class="form-control" id="category-description" name="description" placeholder="Description" maxlength="255"></div><div class="col-md-2"><button class="btn btn-primary w-100" type="submit">{{ 'Request category' if can_request_categories and not can_manage_categories else 'Add category' }}</button></div></form></div></div>{% endif %}
-<div class="card shadow-sm"><div class="card-body table-responsive"><table class="table align-middle"><thead><tr><th>Name</th><th>Description</th>{% if show_category_controls %}<th class="text-end">Controls</th>{% endif %}</tr></thead><tbody>{% for c in categories %}<tr><td><strong>{{ c.name }}</strong></td><td>{{ c.description or '-' }}</td>{% if show_category_controls %}<td class="text-end"><details class="d-inline-block text-start"><summary class="btn btn-sm btn-outline-warning">{{ 'Request edit' if can_request_categories and not can_manage_categories else 'Edit' }}</summary><form method="post" action="{{ url_for('edit_category', category_id=c.id) }}" class="mt-2 p-3 border rounded bg-light"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="form-label small" for="category-name-{{ c.id }}">Category name</label><input class="form-control form-control-sm mb-2" id="category-name-{{ c.id }}" name="name" value="{{ c.name }}" maxlength="100" required><label class="form-label small" for="category-description-{{ c.id }}">Description</label><input class="form-control form-control-sm mb-2" id="category-description-{{ c.id }}" name="description" value="{{ c.description or '' }}" maxlength="255"><button class="btn btn-sm btn-primary w-100" type="submit">{{ 'Submit request' if can_request_categories and not can_manage_categories else 'Save changes' }}</button></form></details><form method="post" action="{{ url_for('delete_category', category_id=c.id) }}" class="d-inline-block" onsubmit="return confirm('{{ 'Submit a deletion request for this category?' if can_request_categories and not can_manage_categories else 'Delete this category? Related equipment will become uncategorized.' }}');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" type="submit">{{ 'Request delete' if can_request_categories and not can_manage_categories else 'Delete' }}</button></form></td>{% endif %}</tr>{% else %}<tr><td colspan="{{ 3 if show_category_controls else 2 }}" class="dashboard-empty">No categories match your search.</td></tr>{% endfor %}</tbody></table></div></div>
+
+{% if can_manage_categories or can_request_categories %}
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('add_category') }}" class="row g-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-md-4">
+                <label class="visually-hidden" for="category-name">Category name</label>
+                <input class="form-control" id="category-name" name="name" placeholder="Category name" maxlength="100" required>
+            </div>
+            <div class="col-md-6">
+                <label class="visually-hidden" for="category-description">Description</label>
+                <input class="form-control" id="category-description" name="description" placeholder="Description" maxlength="255">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" type="submit">
+                    {{ 'Request category' if can_request_categories and not can_manage_categories else 'Add category' }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm">
+    <div class="card-body table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    {% if show_category_controls %}<th class="text-end">Controls</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+            {% for c in categories %}
+                <tr>
+                    <td><strong>{{ c.name }}</strong></td>
+                    <td>{{ c.description or '-' }}</td>
+                    {% if show_category_controls %}
+                    <td class="text-end">
+                        <details class="d-inline-block text-start">
+                            <summary class="btn btn-sm btn-outline-warning">
+                                {{ 'Request edit' if can_request_categories and not can_manage_categories else 'Edit' }}
+                            </summary>
+                            <form method="post" action="{{ url_for('edit_category', category_id=c.id) }}" class="mt-2 p-3 border rounded bg-light">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <label class="form-label small" for="category-name-{{ c.id }}">Category name</label>
+                                <input class="form-control form-control-sm mb-2" id="category-name-{{ c.id }}" name="name" value="{{ c.name }}" maxlength="100" required>
+                                <label class="form-label small" for="category-description-{{ c.id }}">Description</label>
+                                <input class="form-control form-control-sm mb-2" id="category-description-{{ c.id }}" name="description" value="{{ c.description or '' }}" maxlength="255">
+                                <button class="btn btn-sm btn-primary w-100" type="submit">
+                                    {{ 'Submit request' if can_request_categories and not can_manage_categories else 'Save changes' }}
+                                </button>
+                            </form>
+                        </details>
+                        <form method="post" action="{{ url_for('delete_category', category_id=c.id) }}" class="d-inline-block" data-confirm-message="{{ 'Submit a deletion request for this category?' if can_request_categories and not can_manage_categories else 'Delete this category? Related equipment will become uncategorized.' }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">
+                                {{ 'Request delete' if can_request_categories and not can_manage_categories else 'Delete' }}
+                            </button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="{{ 3 if show_category_controls else 2 }}" class="dashboard-empty">No categories match your search.</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}

@@ -24,15 +24,14 @@
             Back
         </a>
 
-        {% if not is_worker or equipment.created_by == session.get('user_id') %}
             {% if equipment.status == 'Archived' %}
             {% if not is_worker %}
-            <form method="post" action="{{ url_for('restore_equipment', item_id=equipment.id) }}" class="d-inline" onsubmit="return confirm('Restore this archived equipment and mark it available?')">
+            <form method="post" action="{{ url_for('restore_equipment', item_id=equipment.id) }}" class="d-inline" data-confirm-message="Restore this archived equipment and mark it available?">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-confirm">Restore</button>
             </form>
             {% endif %}
-            {% elif (equipment.status in ['Available', 'Under Maintenance'] or (is_worker and equipment.status == 'Assigned')) and (not is_worker or equipment.approval_status == 'Approved') %}
+            {% elif (equipment.status in ['Available', 'Under Maintenance'] or (is_worker and equipment.status == 'Assigned')) and (not is_worker or equipment.approval_status == 'Approved') and user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'maintenance') and (not is_worker or equipment.created_by == session.get('user_id') or equipment.accountable_user_id == session.get('user_id')) %}
             <a
                 href="{{ url_for(
                     'equipment_maintenance',
@@ -44,6 +43,7 @@
             </a>
             {% endif %}
             {% if equipment.status != 'Disposed' %}
+            {% if not is_worker or equipment.created_by == session.get('user_id') %}
             <a
                 href="{{ url_for(
                     'edit_equipment',
@@ -54,8 +54,9 @@
                 Edit
             </a>
             {% endif %}
+            {% endif %}
 
-            {% if equipment.status not in ['Under Maintenance', 'Archived', 'Disposed'] and (not is_worker or equipment.approval_status == 'Approved') %}
+            {% if equipment.status not in ['Under Maintenance', 'Archived', 'Disposed'] and (not is_worker or equipment.approval_status == 'Approved') and user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'assign') and (not is_worker or equipment.created_by == session.get('user_id') or equipment.accountable_user_id == session.get('user_id')) %}
                 <a
                     href="{{ url_for(
                         'assign_equipment',
@@ -74,8 +75,11 @@
                 </form>
             {% endif %}
 
-            {% if equipment.status not in ['Archived', 'Disposed', 'Under Maintenance'] and (not is_worker or equipment.approval_status == 'Approved') %}
+            {% if equipment.status not in ['Archived', 'Disposed', 'Under Maintenance'] and (not is_worker or equipment.approval_status == 'Approved') and (not is_worker or equipment.created_by == session.get('user_id') or equipment.accountable_user_id == session.get('user_id')) %}
+                {% if user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'archive') %}
                 <a href="{{ url_for('archive_equipment', item_id=equipment.id) }}" class="btn btn-cancel">Archive</a>
+                {% endif %}
+                {% if user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'dispose') %}
                 <a
                     href="{{ url_for(
                         'dispose_equipment',
@@ -85,8 +89,8 @@
                 >
                     Dispose
                 </a>
+                {% endif %}
             {% endif %}
-        {% endif %}
 
     </div>
 
@@ -297,6 +301,7 @@
         {% for record in maintenance_history %}
             <div class="maintenance-history-row">
                 <div class="maintenance-history-primary">
+                    <div><span class="maintenance-history-label">Started by</span><strong>{{ record.started_by_name }}</strong></div><br>
                     <span class="status-badge {% if record.status == 'Open' %}status-under-maintenance{% else %}status-available{% endif %}">{{ record.status }}</span>
                     <div class="maintenance-history-start">
                         <span class="maintenance-history-label">Started</span>
@@ -305,10 +310,9 @@
                     <div class="maintenance-history-remarks">{{ record.remarks }}</div>
                 </div>
                 <div class="maintenance-history-meta">
-                    <div><span class="maintenance-history-label">Started by</span><strong>{{ record.started_by_name }}</strong></div>
                     {% if record.status == 'Completed' %}
-                    <div><span class="maintenance-history-label">Completed</span><strong>{{ record.completed_at }}</strong></div>
                     <div><span class="maintenance-history-label">Completed by</span><strong>{{ record.completed_by_name or '-' }}</strong></div>
+                    <div><span class="maintenance-history-label">Completed</span><strong>{{ record.completed_at }}</strong></div>
                     <div><span class="maintenance-history-label">Completion remarks</span><span>{{ record.completion_remarks or '-' }}</span></div>
                     {% endif %}
                 </div>

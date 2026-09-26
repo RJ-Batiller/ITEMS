@@ -39,6 +39,7 @@ def dashboard():
     maintenance = status_counts.get("Under Maintenance", 0)
     archived = status_counts.get("Archived", 0)
     disposed = status_counts.get("Disposed", 0)
+    all_equipment = sum(status_counts.values())
 
     cur.execute("""
         SELECT
@@ -173,6 +174,7 @@ def dashboard():
     return render_template(
         "dashboard.html",
         total=total,
+        all_equipment=all_equipment,
         available=available,
         assigned=assigned,
         maintenance=maintenance,

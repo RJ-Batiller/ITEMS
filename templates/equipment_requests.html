@@ -86,7 +86,7 @@
                     <td>{{ item.equipment_name }}</td>
                     <td>{{ item.category_name or '-' }}</td>
                     <td>{{ item.office_name or '-' }}</td>
-                    <td><span class="badge transaction-badge transaction-requested">{{ item.action_type }}</span></td>
+                    <td><span class="badge transaction-badge transaction-requested">{{ 'Re-Assign' if item.action_type == 'Assign' and item.equipment_status == 'Assigned' else item.action_type }}</span></td>
                     <td>{{ item.requested_by_name }}</td>
                     <td>{{ item.created_at }}</td>
                     <td>
