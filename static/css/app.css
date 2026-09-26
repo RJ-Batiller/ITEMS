@@ -3099,3 +3099,119 @@ body {
         grid-column: auto;
     }
 }
+
+/* Sidebar navigation: grouped like a control console instead of a flat list. */
+.sidebar {
+    width: 268px;
+    padding: 24px 14px 18px;
+}
+
+.sidebar-user {
+    margin: 0 4px 24px;
+}
+
+.sidebar-nav {
+    gap: 20px;
+}
+
+.sidebar-nav-group {
+    display: grid;
+    gap: 7px;
+}
+
+.sidebar-nav-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    color: rgba(220, 232, 250, 0.48);
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.59rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.sidebar-nav-label::after {
+    height: 1px;
+    flex: 1;
+    background: linear-gradient(90deg, rgba(67, 217, 255, 0.25), transparent);
+    content: "";
+}
+
+.sidebar-nav-links,
+.sidebar-nav-footer {
+    display: grid;
+    gap: 3px;
+}
+
+.sidebar-nav a,
+.sidebar-nav .sidebar-logout {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 38px;
+    margin: 0 !important;
+    padding: 9px 11px;
+    border-left-width: 2px;
+}
+
+.sidebar-nav-mark {
+    width: 22px;
+    color: rgba(220, 232, 250, 0.38);
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.59rem;
+    letter-spacing: 0.03em;
+    text-align: center;
+}
+
+.sidebar-nav a:hover .sidebar-nav-mark,
+.sidebar-nav a:focus-visible .sidebar-nav-mark,
+.sidebar-nav a.is-active .sidebar-nav-mark {
+    color: var(--neon-cyan);
+}
+
+.sidebar-nav-footer {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.sidebar-nav-footer .sidebar-logout {
+    color: #ff9bae !important;
+}
+
+@media (max-width: 900px) {
+    .sidebar-nav {
+        gap: 3px;
+    }
+
+    .sidebar-nav-group,
+    .sidebar-nav-footer {
+        display: contents;
+    }
+
+    .sidebar-nav-label {
+        display: none;
+    }
+
+    .sidebar-nav-links {
+        display: contents;
+    }
+
+    .sidebar-nav a,
+    .sidebar-nav .sidebar-logout {
+        min-height: 36px;
+        gap: 7px;
+        padding: 9px 11px;
+    }
+
+    .sidebar-nav-mark {
+        display: none;
+    }
+
+    .sidebar-nav-footer {
+        padding-top: 0;
+        border-top: 0;
+    }
+}
