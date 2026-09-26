@@ -19,7 +19,7 @@
 <div class="topbar-account">
 <button class="topbar-account-toggle" type="button" aria-expanded="false" aria-controls="topbar-account-menu">
 {% if g.current_user.has_profile_picture %}<img src="{{ url_for('profile_picture', user_id=g.current_user.id) }}" alt="">{% else %}<span class="topbar-account-avatar">{{ session.get('full_name', 'U')[:1]|upper }}</span>{% endif %}
-<span class="topbar-account-copy"><strong>{{ session.get('full_name', '') }}</strong><small>{{ session.get('role', '') }}</small></span><span class="topbar-account-caret" aria-hidden="true">⌄</span>
+<span class="topbar-account-copy"><strong>{{ session.get('full_name', '') }}</strong><small>{{ session.get('role', '') }}</small></span><span class="topbar-account-symbol" aria-hidden="true"></span><span class="topbar-account-caret" aria-hidden="true">⌄</span>
 </button>
 <div class="topbar-account-menu" id="topbar-account-menu" hidden>
 {% if session.get('role') in ['Super Admin', 'Admin'] %}<a href="{{ url_for('users') }}"><span class="sidebar-nav-icon icon-users" aria-hidden="true"></span>Users</a>{% endif %}
