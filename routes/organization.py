@@ -1,6 +1,7 @@
 ﻿"""Transactions, categories, offices, and QR routes."""
 
 from app import *
+from app import _remote_scanner_sessions
 from services.report_service import build_csv
 
 ORGANIZATION_ACTION_GROUPS = {
