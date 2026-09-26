@@ -23,7 +23,14 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
 )
 """
 
+PROFILE_SCHEMA_SQL = """
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS profile_picture_data LONGBLOB NULL,
+    ADD COLUMN IF NOT EXISTS profile_picture_mime VARCHAR(120) NULL
+"""
+
 _maintenance_schema_ready = False
+_profile_schema_ready = False
 
 
 def get_connection():
@@ -47,14 +54,16 @@ def get_connection():
 
 def get_db_connection():
     """Open a connection and ensure the maintenance table exists once."""
-    global _maintenance_schema_ready
+    global _maintenance_schema_ready, _profile_schema_ready
     conn = get_connection()
     if not _maintenance_schema_ready:
         cur = conn.cursor()
         try:
             cur.execute(MAINTENANCE_SCHEMA_SQL)
+            cur.execute(PROFILE_SCHEMA_SQL)
             conn.commit()
             _maintenance_schema_ready = True
+            _profile_schema_ready = True
         finally:
             cur.close()
     return conn
