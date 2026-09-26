@@ -3879,7 +3879,7 @@ body {
         margin-right: auto !important;
         margin-left: auto !important;
         padding: 10px 11px;
-        overflow: hidden;
+        overflow: visible;
     }
 
     html,
@@ -3998,6 +3998,7 @@ body {
         width: calc(100vw - 28px);
         max-width: calc(100vw - 28px);
         padding: 8px 10px;
+        overflow: visible;
     }
 
     .sidebar-user-avatar {
