@@ -47,17 +47,25 @@
 </div>
 <div class="sidebar-utility-nav">
 <span class="sidebar-nav-label">Communication</span>
-<a class="{{ 'is-active' if request.endpoint in ['messages', 'create_chat_group', 'send_chat_message'] else '' }}" href="{{ url_for('messages') }}"><span class="sidebar-nav-icon icon-messages" aria-hidden="true"></span><span class="sidebar-link-label">Messages</span>{% if unread_messages %}<span class="sidebar-notification-badge" aria-label="{{ unread_messages }} unread messages">{{ unread_messages if unread_messages < 100 else "99+" }}</span>{% endif %}</a>
-<button class="sidebar-account-toggle" type="button" aria-expanded="false" aria-controls="sidebar-account-links"><span class="sidebar-nav-icon icon-profile" aria-hidden="true"></span><span class="sidebar-link-label">Account</span><span class="sidebar-account-caret" aria-hidden="true">⌄</span></button>
-<div class="sidebar-account-links" id="sidebar-account-links" hidden>
-{% if session.get('role') in ['Super Admin', 'Admin'] %}<a class="{{ 'is-active' if request.endpoint == 'users' else '' }}" href="{{ url_for('users') }}"><span class="sidebar-nav-icon icon-users" aria-hidden="true"></span><span class="sidebar-link-label">Users</span></a>{% endif %}
-<a class="{{ 'is-active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}"><span class="sidebar-nav-icon icon-profile" aria-hidden="true"></span><span class="sidebar-link-label">My Profile</span></a>
-<a class="sidebar-logout" href="{{ url_for('logout') }}"><span class="sidebar-nav-icon icon-logout" aria-hidden="true"></span><span class="sidebar-link-label">Logout</span></a>
-</div>
+<a class="sidebar-message-link {{ 'is-active' if request.endpoint in ['messages', 'create_chat_group', 'send_chat_message'] else '' }}" href="{{ url_for('messages') }}" title="Messages" aria-label="Messages"><span class="sidebar-nav-icon icon-messages" aria-hidden="true"></span>{% if unread_messages %}<span class="sidebar-notification-badge" aria-label="{{ unread_messages }} unread messages">{{ unread_messages if unread_messages < 100 else "99+" }}</span>{% endif %}</a>
 </div>
 </nav>
 </aside>
 <main class="content-area">
+<header class="app-topbar">
+<div class="app-topbar-context"><span class="app-topbar-dot"></span><span>ITEMS control desk</span></div>
+<div class="topbar-account">
+<button class="topbar-account-toggle" type="button" aria-expanded="false" aria-controls="topbar-account-menu">
+{% if g.current_user.has_profile_picture %}<img src="{{ url_for('profile_picture', user_id=g.current_user.id) }}" alt="">{% else %}<span class="topbar-account-avatar">{{ session.get('full_name', 'U')[:1]|upper }}</span>{% endif %}
+<span class="topbar-account-copy"><strong>{{ session.get('full_name', '') }}</strong><small>{{ session.get('role', '') }}</small></span><span class="topbar-account-caret" aria-hidden="true">⌄</span>
+</button>
+<div class="topbar-account-menu" id="topbar-account-menu" hidden>
+{% if session.get('role') in ['Super Admin', 'Admin'] %}<a href="{{ url_for('users') }}"><span class="sidebar-nav-icon icon-users" aria-hidden="true"></span>Users</a>{% endif %}
+<a href="{{ url_for('profile') }}"><span class="sidebar-nav-icon icon-profile" aria-hidden="true"></span>My Profile</a>
+<a class="topbar-logout" href="{{ url_for('logout') }}"><span class="sidebar-nav-icon icon-logout" aria-hidden="true"></span>Logout</a>
+</div>
+</div>
+</header>
 {% with messages=get_flashed_messages(with_categories=true) %}
 {% for category,message in messages %}
 <div class="alert alert-{{ category }}">{{ message }}</div>
@@ -121,13 +129,19 @@
         });
     }
 
-    var accountToggle = document.querySelector('.sidebar-account-toggle');
-    var accountLinks = document.getElementById('sidebar-account-links');
-    if (accountToggle && accountLinks) {
+    var accountToggle = document.querySelector('.topbar-account-toggle');
+    var accountMenu = document.getElementById('topbar-account-menu');
+    if (accountToggle && accountMenu) {
         accountToggle.addEventListener('click', function () {
             var expanded = accountToggle.getAttribute('aria-expanded') === 'true';
             accountToggle.setAttribute('aria-expanded', String(!expanded));
-            accountLinks.hidden = expanded;
+            accountMenu.hidden = expanded;
+        });
+        document.addEventListener('click', function (event) {
+            if (!event.target.closest('.topbar-account')) {
+                accountToggle.setAttribute('aria-expanded', 'false');
+                accountMenu.hidden = true;
+            }
         });
     }
 }());

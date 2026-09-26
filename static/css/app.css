@@ -3437,3 +3437,276 @@ body {
         margin-left: 0;
     }
 }
+
+/* Final shell alignment: edge tab, bottom message rail, and top-right account menu. */
+.sidebar-collapse-toggle {
+    position: fixed;
+    top: 50%;
+    left: 253px;
+    z-index: 1100;
+    display: inline-grid;
+    width: 30px;
+    height: 38px;
+    margin: 0;
+    padding: 0;
+    transform: translateY(-50%);
+    place-items: center;
+    border: 1px solid rgba(67, 217, 255, 0.32);
+    border-left: 0;
+    border-radius: 0 9px 9px 0;
+    background: #292728;
+    box-shadow: 8px 0 18px rgba(0, 0, 0, 0.18);
+}
+
+.sidebar-toggle-glyph {
+    width: 20px;
+    height: 20px;
+    border-color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+}
+
+.sidebar-toggle-label {
+    display: none;
+}
+
+.sidebar.is-collapsed .sidebar-collapse-toggle {
+    left: 69px;
+}
+
+.sidebar-utility-nav {
+    gap: 0;
+    align-items: flex-start;
+}
+
+.sidebar-utility-nav .sidebar-nav-label {
+    display: none;
+}
+
+.sidebar-message-link {
+    position: relative;
+    width: 42px !important;
+    min-height: 42px !important;
+    justify-content: center;
+    padding: 8px !important;
+}
+
+.sidebar-message-link .sidebar-nav-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.sidebar-message-link .sidebar-notification-badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+}
+
+.app-topbar {
+    position: relative;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 42px;
+    margin: -20px 0 22px;
+}
+
+.app-topbar-context {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: rgba(22, 22, 22, 0.48);
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.app-topbar-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mcc-red);
+    box-shadow: 0 0 0 4px rgba(200, 16, 46, 0.1);
+}
+
+.topbar-account {
+    position: relative;
+}
+
+.topbar-account-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 190px;
+    padding: 5px 8px 5px 6px;
+    border: 1px solid rgba(22, 22, 22, 0.14);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.65);
+    color: var(--ink);
+    text-align: left;
+}
+
+.topbar-account-toggle:hover,
+.topbar-account-toggle:focus-visible,
+.topbar-account-toggle[aria-expanded="true"] {
+    border-color: rgba(200, 16, 46, 0.46);
+    background: #fff;
+}
+
+.topbar-account-toggle img,
+.topbar-account-avatar {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--mcc-red);
+    color: #fff;
+    font-family: Georgia, serif;
+    font-size: 0.95rem;
+    object-fit: cover;
+}
+
+.topbar-account-copy {
+    display: grid;
+    min-width: 0;
+    line-height: 1.1;
+}
+
+.topbar-account-copy strong {
+    overflow: hidden;
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-account-copy small {
+    color: var(--muted);
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.topbar-account-caret {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 1rem;
+}
+
+.topbar-account-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 190px;
+    padding: 7px;
+    border: 1px solid rgba(22, 22, 22, 0.14);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 16px 32px rgba(22, 22, 22, 0.16);
+}
+
+.topbar-account-menu[hidden] {
+    display: none;
+}
+
+.topbar-account-menu a {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 10px;
+    border-radius: 6px;
+    color: var(--ink);
+    font-size: 0.82rem;
+    text-decoration: none;
+}
+
+.topbar-account-menu a:hover,
+.topbar-account-menu a:focus-visible {
+    background: rgba(200, 16, 46, 0.08);
+    color: var(--mcc-red);
+}
+
+.topbar-account-menu .sidebar-nav-icon {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+    color: var(--mcc-red);
+    font-size: 0.9rem;
+}
+
+.topbar-account-menu .topbar-logout {
+    margin-top: 5px;
+    border-top: 1px solid var(--line);
+    border-radius: 0 0 6px 6px;
+    color: var(--mcc-red);
+}
+
+/* Equipment filters now shrink, scroll, and stack instead of forcing a rigid column. */
+.equipment-catalog {
+    grid-template-columns: minmax(185px, 23%) minmax(0, 1fr);
+    align-items: start;
+}
+
+.equipment-sidebar {
+    min-width: 0;
+    max-height: calc(100vh - 48px);
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.equipment-category-link {
+    min-width: 0;
+}
+
+.equipment-category-link span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 1050px) and (min-width: 901px) {
+    .equipment-catalog {
+        grid-template-columns: minmax(170px, 26%) minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .sidebar-collapse-toggle {
+        display: none;
+    }
+
+    .app-topbar {
+        margin-top: -8px;
+    }
+
+    .equipment-catalog {
+        grid-template-columns: 1fr;
+    }
+
+    .equipment-sidebar {
+        position: static;
+        max-height: none;
+        overflow: visible;
+    }
+}
+
+@media (max-width: 520px) {
+    .app-topbar-context {
+        display: none;
+    }
+
+    .app-topbar {
+        justify-content: flex-end;
+    }
+
+    .topbar-account-toggle {
+        min-width: 0;
+    }
+
+    .topbar-account-copy {
+        max-width: 130px;
+    }
+}
