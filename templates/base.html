@@ -17,41 +17,43 @@
 <span class="sidebar-user-role">{{ session.get('role','') }}</span>
 </div>
 </div>
+<button class="sidebar-collapse-toggle" type="button" aria-expanded="true" aria-controls="sidebar-primary-nav" title="Collapse navigation"><span class="sidebar-toggle-glyph" aria-hidden="true">‹</span><span class="sidebar-toggle-label">Collapse</span></button>
 <nav class="sidebar-nav" aria-label="Main navigation">
+<div class="sidebar-primary-nav" id="sidebar-primary-nav">
 <div class="sidebar-nav-group">
 <span class="sidebar-nav-label">Overview</span>
 <div class="sidebar-nav-links">
-<a class="{{ 'is-active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}"><span class="sidebar-nav-mark">01</span>Dashboard</a>
+<a class="{{ 'is-active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}"><span class="sidebar-nav-icon icon-dashboard" aria-hidden="true"></span><span class="sidebar-link-label">Dashboard</span></a>
 </div>
 </div>
 <div class="sidebar-nav-group">
 <span class="sidebar-nav-label">Inventory</span>
 <div class="sidebar-nav-links">
-<a class="{{ 'is-active' if request.endpoint in ['equipment', 'equipment_view', 'equipment_add', 'equipment_edit', 'equipment_assign', 'equipment_maintenance', 'equipment_dispose', 'equipment_archive', 'equipment_transactions'] else '' }}" href="{{ url_for('equipment') }}"><span class="sidebar-nav-mark">02</span>Equipment</a>
-<a class="{{ 'is-active' if request.endpoint == 'qr_scanner' else '' }}" href="{{ url_for('qr_scanner') }}"><span class="sidebar-nav-mark">03</span>QR Scanner</a>
-<a class="{{ 'is-active' if request.endpoint == 'transactions' else '' }}" href="{{ url_for('transactions') }}"><span class="sidebar-nav-mark">04</span>Transactions</a>
+<a class="{{ 'is-active' if request.endpoint in ['equipment', 'equipment_view', 'equipment_add', 'equipment_edit', 'equipment_assign', 'equipment_maintenance', 'equipment_dispose', 'equipment_archive', 'equipment_transactions'] else '' }}" href="{{ url_for('equipment') }}"><span class="sidebar-nav-icon icon-equipment" aria-hidden="true"></span><span class="sidebar-link-label">Equipment</span></a>
+<a class="{{ 'is-active' if request.endpoint == 'qr_scanner' else '' }}" href="{{ url_for('qr_scanner') }}"><span class="sidebar-nav-icon icon-scanner" aria-hidden="true"></span><span class="sidebar-link-label">QR Scanner</span></a>
+<a class="{{ 'is-active' if request.endpoint == 'transactions' else '' }}" href="{{ url_for('transactions') }}"><span class="sidebar-nav-icon icon-transactions" aria-hidden="true"></span><span class="sidebar-link-label">Transactions</span></a>
 </div>
 </div>
 <div class="sidebar-nav-group">
 <span class="sidebar-nav-label">Administration</span>
 <div class="sidebar-nav-links">
-{% if session.get('role') in ['Super Admin', 'Admin'] %}<a class="{{ 'is-active' if request.endpoint in ['equipment_requests', 'approve_equipment_request', 'reject_equipment_request', 'approve_equipment_action_request', 'reject_equipment_action_request', 'approve_organization_request', 'reject_organization_request', 'view_organization_request'] else '' }}" href="{{ url_for('equipment_requests') }}"><span class="sidebar-nav-mark">05</span>Requests{% if pending_requests %}<span class="sidebar-notification-badge" aria-label="{{ pending_requests }} pending requests">{{ pending_requests if pending_requests < 100 else "99+" }}</span>{% endif %}</a>{% endif %}
-{% if session.get('role') == 'Staff' %}<a class="{{ 'is-active' if request.endpoint == 'my_equipment_requests' else '' }}" href="{{ url_for('my_equipment_requests') }}"><span class="sidebar-nav-mark">05</span>My Requests{% if pending_requests %}<span class="sidebar-notification-badge" aria-label="{{ pending_requests }} pending requests">{{ pending_requests if pending_requests < 100 else "99+" }}</span>{% endif %}</a>{% endif %}
-<a class="{{ 'is-active' if request.endpoint in ['categories', 'category_history'] else '' }}" href="{{ url_for('categories') }}"><span class="sidebar-nav-mark">06</span>Categories</a>
-<a class="{{ 'is-active' if request.endpoint in ['offices', 'office_history'] else '' }}" href="{{ url_for('offices') }}"><span class="sidebar-nav-mark">07</span>Offices</a>
-<a class="{{ 'is-active' if request.endpoint == 'organization_history' else '' }}" href="{{ url_for('organization_history') }}"><span class="sidebar-nav-mark">08</span>Org. History</a>
-{% if session.get('role') in ['Super Admin', 'Admin'] %}<a class="{{ 'is-active' if request.endpoint == 'users' else '' }}" href="{{ url_for('users') }}"><span class="sidebar-nav-mark">09</span>Users</a>{% endif %}
+{% if session.get('role') in ['Super Admin', 'Admin'] %}<a class="{{ 'is-active' if request.endpoint in ['equipment_requests', 'approve_equipment_request', 'reject_equipment_request', 'approve_equipment_action_request', 'reject_equipment_action_request', 'approve_organization_request', 'reject_organization_request', 'view_organization_request'] else '' }}" href="{{ url_for('equipment_requests') }}"><span class="sidebar-nav-icon icon-requests" aria-hidden="true"></span><span class="sidebar-link-label">Requests</span>{% if pending_requests %}<span class="sidebar-notification-badge" aria-label="{{ pending_requests }} pending requests">{{ pending_requests if pending_requests < 100 else "99+" }}</span>{% endif %}</a>{% endif %}
+{% if session.get('role') == 'Staff' %}<a class="{{ 'is-active' if request.endpoint == 'my_equipment_requests' else '' }}" href="{{ url_for('my_equipment_requests') }}"><span class="sidebar-nav-icon icon-requests" aria-hidden="true"></span><span class="sidebar-link-label">My Requests</span>{% if pending_requests %}<span class="sidebar-notification-badge" aria-label="{{ pending_requests }} pending requests">{{ pending_requests if pending_requests < 100 else "99+" }}</span>{% endif %}</a>{% endif %}
+<a class="{{ 'is-active' if request.endpoint in ['categories', 'category_history'] else '' }}" href="{{ url_for('categories') }}"><span class="sidebar-nav-icon icon-categories" aria-hidden="true"></span><span class="sidebar-link-label">Categories</span></a>
+<a class="{{ 'is-active' if request.endpoint in ['offices', 'office_history'] else '' }}" href="{{ url_for('offices') }}"><span class="sidebar-nav-icon icon-offices" aria-hidden="true"></span><span class="sidebar-link-label">Offices</span></a>
+<a class="{{ 'is-active' if request.endpoint == 'organization_history' else '' }}" href="{{ url_for('organization_history') }}"><span class="sidebar-nav-icon icon-history" aria-hidden="true"></span><span class="sidebar-link-label">Org. History</span></a>
 </div>
 </div>
-<div class="sidebar-nav-group">
+</div>
+<div class="sidebar-utility-nav">
 <span class="sidebar-nav-label">Communication</span>
-<div class="sidebar-nav-links">
-<a class="{{ 'is-active' if request.endpoint in ['messages', 'create_chat_group', 'send_chat_message'] else '' }}" href="{{ url_for('messages') }}"><span class="sidebar-nav-mark">10</span>Messages{% if unread_messages %}<span class="sidebar-notification-badge" aria-label="{{ unread_messages }} unread messages">{{ unread_messages if unread_messages < 100 else "99+" }}</span>{% endif %}</a>
+<a class="{{ 'is-active' if request.endpoint in ['messages', 'create_chat_group', 'send_chat_message'] else '' }}" href="{{ url_for('messages') }}"><span class="sidebar-nav-icon icon-messages" aria-hidden="true"></span><span class="sidebar-link-label">Messages</span>{% if unread_messages %}<span class="sidebar-notification-badge" aria-label="{{ unread_messages }} unread messages">{{ unread_messages if unread_messages < 100 else "99+" }}</span>{% endif %}</a>
+<button class="sidebar-account-toggle" type="button" aria-expanded="false" aria-controls="sidebar-account-links"><span class="sidebar-nav-icon icon-profile" aria-hidden="true"></span><span class="sidebar-link-label">Account</span><span class="sidebar-account-caret" aria-hidden="true">⌄</span></button>
+<div class="sidebar-account-links" id="sidebar-account-links" hidden>
+{% if session.get('role') in ['Super Admin', 'Admin'] %}<a class="{{ 'is-active' if request.endpoint == 'users' else '' }}" href="{{ url_for('users') }}"><span class="sidebar-nav-icon icon-users" aria-hidden="true"></span><span class="sidebar-link-label">Users</span></a>{% endif %}
+<a class="{{ 'is-active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}"><span class="sidebar-nav-icon icon-profile" aria-hidden="true"></span><span class="sidebar-link-label">My Profile</span></a>
+<a class="sidebar-logout" href="{{ url_for('logout') }}"><span class="sidebar-nav-icon icon-logout" aria-hidden="true"></span><span class="sidebar-link-label">Logout</span></a>
 </div>
-</div>
-<div class="sidebar-nav-footer">
-<a class="{{ 'is-active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}"><span class="sidebar-nav-mark">ME</span>My Profile</a>
-<a class="sidebar-logout" href="{{ url_for('logout') }}"><span class="sidebar-nav-mark">--</span>Logout</a>
 </div>
 </nav>
 </aside>
@@ -94,6 +96,40 @@
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' && !modal.hidden) closePreview();
     });
+}());
+</script>
+<script>
+(function () {
+    var sidebar = document.querySelector('.sidebar');
+    var toggle = document.querySelector('.sidebar-collapse-toggle');
+    if (!sidebar || !toggle) return;
+
+    var desktop = !window.matchMedia('(max-width: 900px)').matches;
+    var collapsed = window.localStorage.getItem('items-sidebar-collapsed') === 'true';
+    function applyState(isCollapsed) {
+        sidebar.classList.toggle('is-collapsed', isCollapsed);
+        toggle.setAttribute('aria-expanded', String(!isCollapsed));
+        toggle.setAttribute('title', isCollapsed ? 'Expand navigation' : 'Collapse navigation');
+        toggle.querySelector('.sidebar-toggle-label').textContent = isCollapsed ? 'Expand' : 'Collapse';
+    }
+    if (desktop) {
+        applyState(collapsed);
+        toggle.addEventListener('click', function () {
+            collapsed = !sidebar.classList.contains('is-collapsed');
+            applyState(collapsed);
+            window.localStorage.setItem('items-sidebar-collapsed', String(collapsed));
+        });
+    }
+
+    var accountToggle = document.querySelector('.sidebar-account-toggle');
+    var accountLinks = document.getElementById('sidebar-account-links');
+    if (accountToggle && accountLinks) {
+        accountToggle.addEventListener('click', function () {
+            var expanded = accountToggle.getAttribute('aria-expanded') === 'true';
+            accountToggle.setAttribute('aria-expanded', String(!expanded));
+            accountLinks.hidden = expanded;
+        });
+    }
 }());
 </script>
 </body>

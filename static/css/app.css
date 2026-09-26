@@ -3106,6 +3106,55 @@ body {
     padding: 24px 14px 18px;
 }
 
+.content-area {
+    margin-left: 268px;
+}
+
+.sidebar-collapse-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 0 0 14px;
+    padding: 7px 11px;
+    border: 1px solid rgba(67, 217, 255, 0.14);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.025);
+    color: rgba(220, 232, 250, 0.62);
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.61rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.sidebar-collapse-toggle:hover,
+.sidebar-collapse-toggle:focus-visible {
+    border-color: rgba(67, 217, 255, 0.48);
+    background: rgba(67, 217, 255, 0.08);
+    color: var(--white);
+}
+
+.sidebar-toggle-glyph {
+    display: inline-grid;
+    width: 18px;
+    height: 18px;
+    place-items: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-family: Georgia, serif;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.sidebar-nav {
+    gap: 20px;
+}
+
+.sidebar-primary-nav {
+    display: grid;
+    gap: 20px;
+}
+
 .sidebar-user {
     margin: 0 4px 24px;
 }
@@ -3140,9 +3189,59 @@ body {
 }
 
 .sidebar-nav-links,
-.sidebar-nav-footer {
+.sidebar-account-links {
     display: grid;
     gap: 3px;
+}
+
+.sidebar-utility-nav {
+    display: grid;
+    gap: 7px;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.sidebar-account-links {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.sidebar-account-toggle {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    min-height: 38px;
+    margin: 0 !important;
+    padding: 9px 11px;
+    border: 1px solid transparent;
+    border-left: 2px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: #aebbd2;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.sidebar-account-toggle:hover,
+.sidebar-account-toggle:focus-visible {
+    border-color: rgba(67, 217, 255, 0.18);
+    border-left-color: var(--neon-cyan);
+    background: linear-gradient(90deg, rgba(67, 217, 255, 0.14), rgba(255, 63, 103, 0.06));
+    color: var(--white);
+}
+
+.sidebar-account-caret {
+    margin-left: auto;
+    color: rgba(220, 232, 250, 0.5);
+    font-size: 1rem;
+    transition: transform 180ms ease;
+}
+
+.sidebar-account-toggle[aria-expanded="true"] .sidebar-account-caret {
+    transform: rotate(180deg);
 }
 
 .sidebar-nav a,
@@ -3154,6 +3253,37 @@ body {
     margin: 0 !important;
     padding: 9px 11px;
     border-left-width: 2px;
+}
+
+.sidebar-nav-icon {
+    display: inline-grid;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    place-items: center;
+    color: rgba(220, 232, 250, 0.58);
+    font-family: "Segoe UI Symbol", "Noto Sans Symbols", sans-serif;
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.icon-dashboard::before { content: "◒"; }
+.icon-equipment::before { content: "◈"; }
+.icon-scanner::before { content: "⌾"; }
+.icon-transactions::before { content: "⇄"; }
+.icon-requests::before { content: "▱"; }
+.icon-categories::before { content: "▦"; }
+.icon-offices::before { content: "⌂"; }
+.icon-history::before { content: "◌"; }
+.icon-messages::before { content: "◍"; }
+.icon-users::before { content: "♙"; }
+.icon-profile::before { content: "◉"; }
+.icon-logout::before { content: "↪"; }
+
+.sidebar-nav a:hover .sidebar-nav-icon,
+.sidebar-nav a:focus-visible .sidebar-nav-icon,
+.sidebar-nav a.is-active .sidebar-nav-icon {
+    color: var(--neon-cyan);
 }
 
 .sidebar-nav-mark {
@@ -3171,14 +3301,73 @@ body {
     color: var(--neon-cyan);
 }
 
-.sidebar-nav-footer {
-    margin-top: auto;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.09);
+.sidebar-utility-nav .sidebar-logout {
+    color: #ff9bae !important;
 }
 
-.sidebar-nav-footer .sidebar-logout {
-    color: #ff9bae !important;
+.sidebar.is-collapsed {
+    width: 84px;
+    padding-right: 10px;
+    padding-left: 10px;
+}
+
+.app-layout:has(.sidebar.is-collapsed) .content-area {
+    margin-left: 84px;
+}
+
+.sidebar.is-collapsed .sidebar-user {
+    padding: 10px 4px;
+}
+
+.sidebar.is-collapsed .sidebar-user-info,
+.sidebar.is-collapsed .sidebar-collapse-toggle .sidebar-toggle-label,
+.sidebar.is-collapsed .sidebar-nav-label,
+.sidebar.is-collapsed .sidebar-link-label {
+    display: none;
+}
+
+.sidebar.is-collapsed .sidebar-collapse-toggle {
+    justify-content: center;
+    padding: 7px 4px;
+}
+
+.sidebar.is-collapsed .sidebar-toggle-glyph {
+    transform: rotate(180deg);
+}
+
+.sidebar.is-collapsed .sidebar-nav-group,
+.sidebar.is-collapsed .sidebar-utility-nav,
+.sidebar.is-collapsed .sidebar-account-links {
+    gap: 6px;
+}
+
+.sidebar.is-collapsed .sidebar-nav a,
+.sidebar.is-collapsed .sidebar-nav .sidebar-logout,
+.sidebar.is-collapsed .sidebar-account-toggle {
+    justify-content: center;
+    padding: 9px 4px;
+}
+
+.sidebar.is-collapsed .sidebar-account-caret {
+    display: none;
+}
+
+.sidebar.is-collapsed .sidebar-nav-icon {
+    margin: 0;
+}
+
+.sidebar.is-collapsed .sidebar-notification-badge {
+    position: absolute;
+    top: 3px;
+    right: 8px;
+    width: 7px;
+    height: 7px;
+    overflow: hidden;
+    padding: 0;
+    border: 1px solid var(--navy);
+    border-radius: 50%;
+    background: var(--mcc-red);
+    color: transparent;
 }
 
 @media (max-width: 900px) {
@@ -3186,8 +3375,10 @@ body {
         gap: 3px;
     }
 
+    .sidebar-primary-nav,
     .sidebar-nav-group,
-    .sidebar-nav-footer {
+    .sidebar-utility-nav,
+    .sidebar-account-links {
         display: contents;
     }
 
@@ -3197,6 +3388,21 @@ body {
 
     .sidebar-nav-links {
         display: contents;
+    }
+
+    .sidebar-collapse-toggle {
+        display: none;
+    }
+
+    .sidebar-account-toggle {
+        width: auto;
+        min-height: 36px;
+        gap: 7px;
+        padding: 9px 11px;
+    }
+
+    .sidebar-account-links[hidden] {
+        display: none;
     }
 
     .sidebar-nav a,
@@ -3210,8 +3416,24 @@ body {
         display: none;
     }
 
-    .sidebar-nav-footer {
+    .sidebar-utility-nav,
+    .sidebar-account-links {
         padding-top: 0;
         border-top: 0;
+    }
+
+    .sidebar.is-collapsed,
+    .sidebar {
+        width: auto;
+        padding-right: 8px;
+        padding-left: 8px;
+    }
+
+    .app-layout:has(.sidebar.is-collapsed) .content-area {
+        margin-left: 0;
+    }
+
+    .content-area {
+        margin-left: 0;
     }
 }
