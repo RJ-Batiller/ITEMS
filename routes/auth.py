@@ -15,6 +15,9 @@ def register_auth_routes(app):
         return redirect(url_for("login"))
 
     def login():
+        if request.method == "GET" and session.get("user_id"):
+            return redirect(url_for("dashboard"))
+
         if request.method == "POST":
             username = request.form.get("username", "").strip()
             password = request.form.get("password", "")
