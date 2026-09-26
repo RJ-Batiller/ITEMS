@@ -68,10 +68,20 @@
         }
     });
     composer.addEventListener("submit", function () {
+        if (composer.dataset.submitting === "true") return;
+        composer.dataset.submitting = "true";
+
+        // Preserve the value in a submitted hidden field before clearing the
+        // visible textarea, so the message is not lost during serialization.
+        var submittedMessage = document.createElement("input");
+        submittedMessage.type = "hidden";
+        submittedMessage.name = "message";
+        submittedMessage.value = composerInput.value;
+        composer.appendChild(submittedMessage);
+        composerInput.disabled = true;
+        composerInput.value = "";
         composerSubmit.disabled = true;
         composerSubmit.textContent = "Sending...";
-        // Let the browser capture the form data before clearing the field.
-        window.setTimeout(function () { composerInput.value = ""; }, 0);
     });
     document.addEventListener("click", function (event) {
         var button = event.target.closest(".message-reply-button");
