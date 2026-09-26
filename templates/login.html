@@ -25,7 +25,9 @@
 <!-- Main Content -->
 <main class="login-container">
 <div class="login-form-box">
-<h2 class="mb-4">Sign In</h2>
+<div class="login-form-kicker"><span aria-hidden="true"></span> ITEMS CONTROL DESK</div>
+<h2>Sign In</h2>
+<p class="login-form-intro">Access the equipment inventory workspace.</p>
 {% with messages=get_flashed_messages(with_categories=true) %}
 {% for c,m in messages %}<div class="alert alert-{{c}}">{{m}}</div>{% endfor %}
 {% endwith %}
