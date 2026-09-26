@@ -141,25 +141,17 @@ def inject_sidebar_notifications():
         user_id = session["user_id"]
         role = (session.get("role") or "").strip().lower()
 
-        cur.execute("SELECT messages_seen_at FROM users WHERE id = %s", (user_id,))
-        user_state = cur.fetchone() or {}
-        seen_at = user_state.get("messages_seen_at")
-        if seen_at:
-            cur.execute("""
-                SELECT COUNT(*) AS total
-                FROM chat_messages m
-                JOIN chat_group_members gm ON gm.group_id = m.group_id AND gm.user_id = %s
-                WHERE m.sender_id <> %s
-                  AND m.is_deleted = 0
-                  AND m.created_at > %s
-            """, (user_id, user_id, seen_at))
-        else:
-            cur.execute("""
-                SELECT COUNT(*) AS total
-                FROM chat_messages m
-                JOIN chat_group_members gm ON gm.group_id = m.group_id AND gm.user_id = %s
-                WHERE m.sender_id <> %s AND m.is_deleted = 0
-            """, (user_id, user_id))
+        cur.execute("""
+            SELECT COUNT(*) AS total
+            FROM chat_messages m
+            JOIN chat_group_members gm
+              ON gm.group_id = m.group_id AND gm.user_id = %s
+            LEFT JOIN chat_group_reads gr
+              ON gr.group_id = m.group_id AND gr.user_id = %s
+            WHERE m.sender_id <> %s
+              AND m.is_deleted = 0
+              AND m.id > COALESCE(gr.last_read_message_id, 0)
+        """, (user_id, user_id, user_id))
         notifications["unread_messages"] = cur.fetchone()["total"]
 
         requests_seen_at = session.get("requests_seen_at")

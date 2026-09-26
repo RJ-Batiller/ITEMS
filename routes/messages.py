@@ -69,19 +69,21 @@ def serialize_chat_messages(cur, group_id, after_id=0):
 def messages():
     conn = db()
     cur = conn.cursor(dictionary=True)
-    cur.execute(
-        "UPDATE users SET messages_seen_at = %s WHERE id = %s",
-        (philippines_now().strftime("%Y-%m-%d %H:%M:%S"), g.current_user["id"]),
-    )
-    conn.commit()
     cur.execute("""
-        SELECT g.id, g.name, COUNT(gm_all.user_id) AS member_count
+        SELECT g.id, g.name, COUNT(DISTINCT gm_all.user_id) AS member_count,
+               COUNT(DISTINCT unread.id) AS unread_count
         FROM chat_groups g
         JOIN chat_group_members gm ON gm.group_id = g.id AND gm.user_id = %s
         LEFT JOIN chat_group_members gm_all ON gm_all.group_id = g.id
+        LEFT JOIN chat_group_reads gr ON gr.group_id = g.id AND gr.user_id = %s
+        LEFT JOIN chat_messages unread
+          ON unread.group_id = g.id
+         AND unread.id > COALESCE(gr.last_read_message_id, 0)
+         AND unread.sender_id <> %s
+         AND unread.is_deleted = 0
         GROUP BY g.id, g.name
         ORDER BY g.name
-    """, (g.current_user["id"],))
+    """, (g.current_user["id"], g.current_user["id"], g.current_user["id"]))
     groups = cur.fetchall()
 
     selected_group = None
@@ -93,6 +95,17 @@ def messages():
     if group_id:
         selected_group = get_chat_group(cur, group_id, g.current_user["id"])
     if selected_group:
+        cur.execute("""
+            INSERT INTO chat_group_reads (group_id, user_id, last_read_message_id)
+            SELECT %s, %s, COALESCE(MAX(id), 0)
+            FROM chat_messages
+            WHERE group_id = %s
+            ON DUPLICATE KEY UPDATE last_read_message_id = VALUES(last_read_message_id)
+        """, (selected_group["id"], g.current_user["id"], selected_group["id"]))
+        conn.commit()
+        for group in groups:
+            if group["id"] == selected_group["id"]:
+                group["unread_count"] = 0
         selected_messages = serialize_chat_messages(cur, selected_group["id"], 0)
     else:
         selected_messages = []

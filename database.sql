@@ -53,6 +53,16 @@ CREATE TABLE chat_group_members (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE chat_group_reads (
+    group_id INT NOT NULL,
+    user_id INT NOT NULL,
+    last_read_message_id BIGINT NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (group_id, user_id),
+    FOREIGN KEY (group_id) REFERENCES chat_groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE chat_messages (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     group_id INT NOT NULL,

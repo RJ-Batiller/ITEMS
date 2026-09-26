@@ -2400,6 +2400,7 @@ body {
 .messenger-section-heading strong { color: var(--mcc-red); }
 .messenger-group-list { display: grid; gap: 5px; }
 .messenger-group-link { display: flex; align-items: center; gap: 10px; padding: 11px 9px; border-radius: 7px; color: var(--ink); text-decoration: none; transition: background 160ms ease, transform 160ms ease; }
+.messenger-unread-dot { width: 8px; height: 8px; flex: 0 0 8px; margin-left: auto; border-radius: 50%; background: var(--mcc-red); box-shadow: 0 0 0 4px rgba(200, 16, 46, 0.12), 0 0 12px rgba(200, 16, 46, 0.45); }
 .messenger-group-link:hover, .messenger-group-link.is-active { background: rgba(200, 16, 46, 0.08); color: var(--mcc-red-dark); transform: translateX(3px); }
 .messenger-group-icon { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 7px; background: rgba(200, 16, 46, 0.1); color: var(--mcc-red); font-weight: 800; }
 .messenger-group-link strong, .messenger-group-link small { display: block; }
