@@ -889,26 +889,6 @@ body.app-shell {
     content: "";
 }
 
-.login-form-kicker {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-    color: var(--mcc-red);
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-}
-
-.login-form-kicker span {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--mcc-red);
-    box-shadow: 0 0 0 4px rgba(200, 16, 46, 0.11);
-}
-
 .login-form-box h2 {
     color: var(--ink);
     font-weight: 700;
