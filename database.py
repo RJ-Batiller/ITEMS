@@ -23,14 +23,27 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
 )
 """
 
-PROFILE_SCHEMA_SQL = """
-ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS profile_picture_data LONGBLOB NULL,
-    ADD COLUMN IF NOT EXISTS profile_picture_mime VARCHAR(120) NULL
-"""
-
 _maintenance_schema_ready = False
 _profile_schema_ready = False
+
+
+def ensure_profile_schema(cur):
+    """Add profile image columns when an older production schema is detected."""
+    cur.execute(
+        """
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = %s
+          AND TABLE_NAME = 'users'
+          AND COLUMN_NAME IN ('profile_picture_data', 'profile_picture_mime')
+        """,
+        (Config.DB_NAME,),
+    )
+    existing = {row[0] for row in cur.fetchall()}
+    if "profile_picture_data" not in existing:
+        cur.execute("ALTER TABLE users ADD COLUMN profile_picture_data LONGBLOB NULL")
+    if "profile_picture_mime" not in existing:
+        cur.execute("ALTER TABLE users ADD COLUMN profile_picture_mime VARCHAR(120) NULL")
 
 
 def get_connection():
@@ -60,7 +73,7 @@ def get_db_connection():
         cur = conn.cursor()
         try:
             cur.execute(MAINTENANCE_SCHEMA_SQL)
-            cur.execute(PROFILE_SCHEMA_SQL)
+            ensure_profile_schema(cur)
             conn.commit()
             _maintenance_schema_ready = True
             _profile_schema_ready = True
