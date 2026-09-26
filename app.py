@@ -24,6 +24,7 @@ from flask import (
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import mysql.connector
 from mysql.connector.errors import IntegrityError
@@ -68,6 +69,10 @@ def env_flag(name, default=False):
 # ============================================================
 
 app = Flask(__name__)
+
+# Railway terminates HTTPS at its proxy and forwards the original request
+# scheme and host to Gunicorn.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 app.secret_key = require_secret_key()
 app.config.update(
