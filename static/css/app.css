@@ -3872,12 +3872,12 @@ body {
 
 @media (max-width: 900px) {
     .sidebar-user {
-        width: 205px;
+        width: min(380px, calc(100vw - 32px));
         max-width: calc(100vw - 32px);
-        margin-right: 0 !important;
-        margin-left: 0 !important;
+        margin-right: auto !important;
+        margin-left: auto !important;
         padding: 10px 11px;
-        overflow: visible;
+        overflow: hidden;
     }
 
     html,
@@ -3944,48 +3944,54 @@ body {
 @media (max-width: 900px) {
     .sidebar-user > .topbar-account {
         position: absolute;
-        top: 50%;
-        right: auto;
-        left: calc(100% + 8px);
-        transform: translateY(-50%);
+        inset: 0;
+        transform: none;
     }
 
     .sidebar-user > .topbar-account .topbar-account-toggle {
-        display: grid;
-        width: 34px;
-        min-width: 34px;
-        height: 34px;
-        padding: 2px;
-        place-items: center;
+        display: flex;
+        width: 100%;
+        min-width: 0;
+        height: 100%;
+        justify-content: flex-end;
+        padding: 2px 5px;
         border: 0;
-        border-radius: 50%;
+        border-radius: 10px;
         background: transparent;
     }
 
     .sidebar-user > .topbar-account .topbar-account-toggle img,
-    .sidebar-user > .topbar-account .topbar-account-avatar {
-        width: 30px;
-        height: 30px;
-    }
-
+    .sidebar-user > .topbar-account .topbar-account-avatar,
     .sidebar-user > .topbar-account .topbar-account-copy,
     .sidebar-user > .topbar-account .topbar-account-caret {
         display: none;
     }
 
+    .sidebar-user > .topbar-account .topbar-account-caret {
+        display: block;
+        margin: 0;
+        padding: 4px 5px;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 1.1rem;
+    }
+
     .sidebar-user > .topbar-account .topbar-account-menu {
         top: calc(100% + 8px);
-        right: auto;
-        left: 0;
+        right: 0;
+        left: auto;
+    }
+
+    .sidebar-user-info {
+        position: relative;
+        z-index: 2;
+        padding-right: 30px;
     }
 }
 
 @media (max-width: 520px) {
     .sidebar-user {
-        width: 185px;
+        width: calc(100vw - 28px);
         max-width: calc(100vw - 28px);
-        margin-right: 0 !important;
-        margin-left: 0 !important;
         padding: 8px 10px;
     }
 
