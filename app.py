@@ -96,6 +96,14 @@ app.config.update(
 PROFILE_UPLOAD_DIR = os.path.join(app.root_path, "static", "uploads", "profiles")
 CHAT_UPLOAD_DIR = os.path.join(app.root_path, "private_uploads", "chat")
 PROFILE_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
+PROFILE_IMAGE_MIME_TYPES = {
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "png": "image/png",
+    "gif": "image/gif",
+    "webp": "image/webp",
+}
+PROFILE_IMAGE_MAX_BYTES = 4 * 1024 * 1024
 CHAT_FILE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "pdf", "doc", "docx", "xls", "xlsx", "txt", "zip"}
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
@@ -554,7 +562,9 @@ def get_current_user():
     conn = db()
     cur = conn.cursor(dictionary=True)
     cur.execute("""
-        SELECT u.id, u.username, u.full_name, u.email, u.profile_picture, u.feature_permissions, u.is_active, r.name AS role_name
+        SELECT u.id, u.username, u.full_name, u.email, u.profile_picture,
+               (u.profile_picture_data IS NOT NULL) AS has_profile_picture,
+               u.feature_permissions, u.is_active, r.name AS role_name
         FROM users u
         JOIN roles r ON r.id = u.role_id
         WHERE u.id = %s AND u.is_active = 1

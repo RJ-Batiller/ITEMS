@@ -26,6 +26,8 @@ CREATE TABLE users (
     email VARCHAR(150),
     role_id INT NOT NULL,
     profile_picture VARCHAR(255) NULL,
+    profile_picture_data LONGBLOB NULL,
+    profile_picture_mime VARCHAR(120) NULL,
     feature_permissions JSON NULL,
     is_active TINYINT(1) DEFAULT 1,
     login_count INT NOT NULL DEFAULT 0,
@@ -264,7 +266,8 @@ INSERT INTO schema_migrations (version) VALUES
 ('015_allow_combined_organization_actions.sql'),
 ('016_add_login_tracking.sql'),
 ('017_add_accountable_user.sql'),
-('018_add_request_acknowledgement.sql');
+('018_add_request_acknowledgement.sql'),
+('019_store_profile_pictures.sql');
 
 INSERT INTO offices(name,description) VALUES
 ('Institute of Computing Studies','Sample office'),

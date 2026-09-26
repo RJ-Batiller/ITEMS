@@ -2,6 +2,23 @@
 
 from app import *
 
+
+def read_profile_picture(uploaded_picture, user_id):
+    """Read a profile picture into memory so it survives web-container restarts."""
+    safe_name = secure_filename(uploaded_picture.filename)
+    extension = safe_name.rsplit(".", 1)[-1].lower() if "." in safe_name else ""
+    if extension not in PROFILE_IMAGE_EXTENSIONS:
+        raise ValueError("Profile picture must be JPG, PNG, GIF, or WEBP.")
+
+    image_data = uploaded_picture.read()
+    if not image_data:
+        raise ValueError("The selected profile picture is empty.")
+    if len(image_data) > PROFILE_IMAGE_MAX_BYTES:
+        raise ValueError("Profile pictures must be 4 MB or smaller.")
+
+    filename = f"{user_id}_{secrets.token_hex(8)}.{extension}"
+    return filename, image_data, PROFILE_IMAGE_MIME_TYPES[extension]
+
 # USERS
 # SUPER ADMIN AND ADMIN
 # ============================================================
@@ -19,6 +36,7 @@ def users():
             u.full_name,
             u.email,
             u.profile_picture,
+            (u.profile_picture_data IS NOT NULL) AS has_profile_picture,
             u.feature_permissions,
             u.is_active,
             r.name AS role_name
@@ -52,6 +70,47 @@ def users():
         roles=roles,
         restrictable_features=RESTRICTABLE_FEATURES
     )
+
+
+@app.route("/profile-picture/<int:user_id>")
+@login_required
+def profile_picture(user_id):
+    """Serve profile pictures from MySQL without exposing the upload directory."""
+    current_role = g.current_user["role_name"].strip().lower()
+    if user_id != g.current_user["id"] and current_role not in MANAGEMENT_ROLES:
+        return "", 404
+
+    conn = db()
+    cur = conn.cursor(dictionary=True)
+    cur.execute(
+        """
+        SELECT profile_picture_data, profile_picture_mime, profile_picture
+        FROM users
+        WHERE id = %s AND is_active = 1
+        """,
+        (user_id,),
+    )
+    picture = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not picture:
+        return "", 404
+    if picture["profile_picture_data"]:
+        response = send_file(
+            BytesIO(picture["profile_picture_data"]),
+            mimetype=picture["profile_picture_mime"] or "application/octet-stream",
+            max_age=0,
+        )
+        response.headers["Cache-Control"] = "private, no-cache, no-store, must-revalidate"
+        return response
+
+    # Compatibility for local installations that still have the old file.
+    if picture["profile_picture"]:
+        legacy_path = os.path.join(PROFILE_UPLOAD_DIR, picture["profile_picture"])
+        if os.path.isfile(legacy_path):
+            return send_file(legacy_path, max_age=0)
+    return "", 404
 
 
 # ============================================================
@@ -207,17 +266,15 @@ def profile():
                     raise ValueError("New password and confirmation do not match.")
 
             profile_picture = None
+            profile_picture_data = None
+            profile_picture_mime = None
             uploaded_picture = request.files.get("profile_picture")
             if uploaded_picture and uploaded_picture.filename:
                 if g.current_user["role_name"].strip().lower() not in MANAGEMENT_ROLES:
                     raise ValueError("Only Super Admin and Admin accounts may change profile pictures.")
-                safe_name = secure_filename(uploaded_picture.filename)
-                extension = safe_name.rsplit(".", 1)[-1].lower() if "." in safe_name else ""
-                if extension not in PROFILE_IMAGE_EXTENSIONS:
-                    raise ValueError("Profile picture must be JPG, PNG, GIF, or WEBP.")
-                profile_picture = f"{g.current_user['id']}_{secrets.token_hex(8)}.{extension}"
-                os.makedirs(PROFILE_UPLOAD_DIR, exist_ok=True)
-                uploaded_picture.save(os.path.join(PROFILE_UPLOAD_DIR, profile_picture))
+                profile_picture, profile_picture_data, profile_picture_mime = read_profile_picture(
+                    uploaded_picture, g.current_user["id"]
+                )
 
             conn = db()
             cur = conn.cursor(dictionary=True)
@@ -229,15 +286,22 @@ def profile():
             if new_password:
                 cur.execute("""
                     UPDATE users
-                    SET full_name = %s, email = %s, password_hash = %s, profile_picture = COALESCE(%s, profile_picture)
+                    SET full_name = %s, email = %s, password_hash = %s,
+                        profile_picture = COALESCE(%s, profile_picture),
+                        profile_picture_data = COALESCE(%s, profile_picture_data),
+                        profile_picture_mime = COALESCE(%s, profile_picture_mime)
                     WHERE id = %s
-                """, (full_name, email, generate_password_hash(new_password), profile_picture, g.current_user["id"]))
+                """, (full_name, email, generate_password_hash(new_password), profile_picture,
+                      profile_picture_data, profile_picture_mime, g.current_user["id"]))
             else:
                 cur.execute("""
                     UPDATE users SET full_name = %s, email = %s,
-                    profile_picture = COALESCE(%s, profile_picture)
+                    profile_picture = COALESCE(%s, profile_picture),
+                    profile_picture_data = COALESCE(%s, profile_picture_data),
+                    profile_picture_mime = COALESCE(%s, profile_picture_mime)
                     WHERE id = %s
-                """, (full_name, email, profile_picture, g.current_user["id"]))
+                """, (full_name, email, profile_picture, profile_picture_data,
+                      profile_picture_mime, g.current_user["id"]))
             cur.execute("""
                 INSERT INTO organization_history
                     (entity_type, entity_id, entity_name, action, details, user_id)
@@ -247,10 +311,6 @@ def profile():
             session["full_name"] = full_name
             if profile_picture:
                 session["profile_picture"] = profile_picture
-                if account and account.get("profile_picture") and account["profile_picture"] != profile_picture:
-                    old_picture = os.path.join(PROFILE_UPLOAD_DIR, account["profile_picture"])
-                    if os.path.isfile(old_picture):
-                        os.remove(old_picture)
             flash("Profile updated.", "success")
         except ValueError as error:
             flash(str(error), "danger")
@@ -274,7 +334,6 @@ def profile():
 def update_managed_user(user_id):
     conn = None
     cur = None
-    new_picture_path = None
     try:
         full_name = clean_text(request.form.get("full_name"), "Full name", 150)
         email = optional_email(request.form.get("email"))
@@ -299,24 +358,24 @@ def update_managed_user(user_id):
 
         uploaded_picture = request.files.get("profile_picture")
         profile_picture = None
+        profile_picture_data = None
+        profile_picture_mime = None
         if uploaded_picture and uploaded_picture.filename:
-            safe_name = secure_filename(uploaded_picture.filename)
-            extension = safe_name.rsplit(".", 1)[-1].lower() if "." in safe_name else ""
-            if extension not in PROFILE_IMAGE_EXTENSIONS:
-                raise ValueError("Profile picture must be JPG, PNG, GIF, or WEBP.")
-            profile_picture = f"{user_id}_{secrets.token_hex(8)}.{extension}"
-            os.makedirs(PROFILE_UPLOAD_DIR, exist_ok=True)
-            new_picture_path = os.path.join(PROFILE_UPLOAD_DIR, profile_picture)
-            uploaded_picture.save(new_picture_path)
+            profile_picture, profile_picture_data, profile_picture_mime = read_profile_picture(
+                uploaded_picture, user_id
+            )
 
         cur.execute("""
             UPDATE users
             SET full_name = %s,
                 email = %s,
                 profile_picture = COALESCE(%s, profile_picture),
+                profile_picture_data = COALESCE(%s, profile_picture_data),
+                profile_picture_mime = COALESCE(%s, profile_picture_mime),
                 password_hash = COALESCE(%s, password_hash)
             WHERE id = %s
-        """, (full_name, email, profile_picture, generate_password_hash(new_password) if new_password else None, user_id))
+        """, (full_name, email, profile_picture, profile_picture_data, profile_picture_mime,
+              generate_password_hash(new_password) if new_password else None, user_id))
         details = "Account information and profile picture updated."
         if new_password:
             details += " Password was changed; the password itself was not recorded."
@@ -326,14 +385,8 @@ def update_managed_user(user_id):
             VALUES ('Account', %s, %s, 'Updated', %s, %s)
         """, (user_id, target["username"], details, g.current_user["id"]))
         conn.commit()
-        if profile_picture and target.get("profile_picture") and target["profile_picture"] != profile_picture:
-            old_picture_path = os.path.join(PROFILE_UPLOAD_DIR, target["profile_picture"])
-            if os.path.isfile(old_picture_path):
-                os.remove(old_picture_path)
         flash(f"{target['username']} account updated.", "success")
     except ValueError as error:
-        if new_picture_path and os.path.isfile(new_picture_path):
-            os.remove(new_picture_path)
         flash(str(error), "danger")
     finally:
         if cur:
