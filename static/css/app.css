@@ -3928,6 +3928,56 @@ body {
     }
 }
 
+/* Account control shares the profile card on mobile and anchors the desktop workspace. */
+.sidebar-user {
+    position: relative;
+}
+
+.sidebar-user > .topbar-account {
+    position: fixed;
+    top: 18px;
+    left: 290px;
+    z-index: 1100;
+}
+
+@media (max-width: 900px) {
+    .sidebar-user > .topbar-account {
+        position: absolute;
+        top: 50%;
+        right: 7px;
+        left: auto;
+        transform: translateY(-50%);
+    }
+
+    .sidebar-user > .topbar-account .topbar-account-toggle {
+        display: grid;
+        width: 34px;
+        min-width: 34px;
+        height: 34px;
+        padding: 2px;
+        place-items: center;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+    }
+
+    .sidebar-user > .topbar-account .topbar-account-toggle img,
+    .sidebar-user > .topbar-account .topbar-account-avatar {
+        width: 30px;
+        height: 30px;
+    }
+
+    .sidebar-user > .topbar-account .topbar-account-copy,
+    .sidebar-user > .topbar-account .topbar-account-caret {
+        display: none;
+    }
+
+    .sidebar-user > .topbar-account .topbar-account-menu {
+        top: calc(100% + 8px);
+        right: 0;
+    }
+}
+
 @media (max-width: 520px) {
     .sidebar-user {
         width: 185px;
