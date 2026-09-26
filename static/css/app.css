@@ -3874,8 +3874,8 @@ body {
     .sidebar-user {
         width: 205px;
         max-width: calc(100vw - 32px);
-        margin-right: auto;
-        margin-left: auto;
+        margin-right: 0 !important;
+        margin-left: 0 !important;
         padding: 10px 11px;
     }
 
@@ -3922,12 +3922,18 @@ body {
     .equipment-catalog-content .table-card {
         overflow: hidden;
     }
+
+    .app-topbar {
+        justify-content: flex-start;
+    }
 }
 
 @media (max-width: 520px) {
     .sidebar-user {
         width: 185px;
         max-width: calc(100vw - 28px);
+        margin-right: 0 !important;
+        margin-left: 0 !important;
         padding: 8px 10px;
     }
 
