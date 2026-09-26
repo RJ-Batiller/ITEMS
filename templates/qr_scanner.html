@@ -180,8 +180,14 @@ function startRemoteScanner() {
     button.disabled = true;
     button.textContent = "Creating phone session...";
 
-    fetch(button.dataset.startUrl)
+    fetch(button.dataset.startUrl, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" }
+    })
         .then(response => {
+            if (response.redirected || response.url.endsWith("/login")) {
+                throw new Error("Your login session expired. Refresh the page and sign in again.");
+            }
             if (!response.ok) throw new Error("Unable to create session");
             return response.json();
         })
@@ -210,10 +216,10 @@ function startRemoteScanner() {
                     .catch(() => {});
             }, 1000);
         })
-        .catch(() => {
+        .catch(error => {
             button.disabled = false;
             button.textContent = "Use Phone Camera";
-            showError("Unable to create a phone scanner session.");
+            showError(error.message || "Unable to create a phone scanner session.");
         });
 }
 
