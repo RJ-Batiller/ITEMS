@@ -141,7 +141,9 @@ def inject_sidebar_notifications():
         user_id = session["user_id"]
         role = (session.get("role") or "").strip().lower()
 
-        seen_at = session.get("messages_seen_at")
+        cur.execute("SELECT messages_seen_at FROM users WHERE id = %s", (user_id,))
+        user_state = cur.fetchone() or {}
+        seen_at = user_state.get("messages_seen_at")
         if seen_at:
             cur.execute("""
                 SELECT COUNT(*) AS total

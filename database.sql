@@ -31,6 +31,7 @@ CREATE TABLE users (
     feature_permissions JSON NULL,
     is_active TINYINT(1) DEFAULT 1,
     login_count INT NOT NULL DEFAULT 0,
+    messages_seen_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (role_id) REFERENCES roles(id)
 );

@@ -67,9 +67,13 @@ def serialize_chat_messages(cur, group_id, after_id=0):
 @app.route("/messages")
 @login_required
 def messages():
-    session["messages_seen_at"] = philippines_now().strftime("%Y-%m-%d %H:%M:%S")
     conn = db()
     cur = conn.cursor(dictionary=True)
+    cur.execute(
+        "UPDATE users SET messages_seen_at = %s WHERE id = %s",
+        (philippines_now().strftime("%Y-%m-%d %H:%M:%S"), g.current_user["id"]),
+    )
+    conn.commit()
     cur.execute("""
         SELECT g.id, g.name, COUNT(gm_all.user_id) AS member_count
         FROM chat_groups g
