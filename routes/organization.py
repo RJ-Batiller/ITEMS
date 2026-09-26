@@ -1026,9 +1026,19 @@ def _remote_scanner_session(token):
 
 
 def _remote_scanner_url(token):
-    public_base_url = os.getenv("APP_PUBLIC_URL", "").rstrip("/")
     path = url_for("remote_scanner", token=token)
-    return f"{public_base_url}{path}" if public_base_url else url_for("remote_scanner", token=token, _external=True)
+    public_base_url = os.getenv("APP_PUBLIC_URL", "").strip().rstrip("/")
+
+    # Do not send phone users to the example domain when the deployment has
+    # not been given a real custom URL yet. ProxyFix makes the fallback use
+    # Railway's HTTPS host and scheme.
+    placeholder_urls = {
+        "https://your-domain.com",
+        "http://your-domain.com",
+    }
+    if public_base_url and public_base_url not in placeholder_urls:
+        return f"{public_base_url}{path}"
+    return url_for("remote_scanner", token=token, _external=True)
 
 
 @app.route("/qr-scanner/remote/start")
