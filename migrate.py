@@ -59,7 +59,7 @@ def apply_migrations():
             conn.rollback()
             # A partially applied deployment may already have this column.
             # Treat that state as complete and record the migration.
-            if error.errno == 1060 and version == "016_add_login_tracking.sql":
+            if error.errno == 1060 and version in {"008_persist_message_read_marker.sql", "016_add_login_tracking.sql"}:
                 cur.execute(
                     "INSERT INTO schema_migrations (version) VALUES (%s)",
                     (version,),

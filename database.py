@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
 
 _maintenance_schema_ready = False
 _profile_schema_ready = False
+_message_schema_ready = False
 
 
 def ensure_profile_schema(cur):
@@ -44,6 +45,23 @@ def ensure_profile_schema(cur):
         cur.execute("ALTER TABLE users ADD COLUMN profile_picture_data LONGBLOB NULL")
     if "profile_picture_mime" not in existing:
         cur.execute("ALTER TABLE users ADD COLUMN profile_picture_mime VARCHAR(120) NULL")
+
+
+def ensure_message_schema(cur):
+    """Keep older production databases compatible with persistent read markers."""
+    cur.execute(
+        """
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = %s
+          AND TABLE_NAME = 'users'
+          AND COLUMN_NAME = 'messages_seen_at'
+        """,
+        (Config.DB_NAME,),
+    )
+    if not cur.fetchone():
+        cur.execute("ALTER TABLE users ADD COLUMN messages_seen_at DATETIME NULL AFTER login_count")
+        cur.execute("UPDATE users SET messages_seen_at = CURRENT_TIMESTAMP WHERE messages_seen_at IS NULL")
 
 
 def get_connection():
@@ -67,16 +85,18 @@ def get_connection():
 
 def get_db_connection():
     """Open a connection and ensure the maintenance table exists once."""
-    global _maintenance_schema_ready, _profile_schema_ready
+    global _maintenance_schema_ready, _profile_schema_ready, _message_schema_ready
     conn = get_connection()
     if not _maintenance_schema_ready:
         cur = conn.cursor()
         try:
             cur.execute(MAINTENANCE_SCHEMA_SQL)
             ensure_profile_schema(cur)
+            ensure_message_schema(cur)
             conn.commit()
             _maintenance_schema_ready = True
             _profile_schema_ready = True
+            _message_schema_ready = True
         finally:
             cur.close()
     return conn
