@@ -45,10 +45,6 @@
 </div>
 </div>
 </div>
-<div class="sidebar-utility-nav">
-<span class="sidebar-nav-label">Communication</span>
-<a class="sidebar-message-link {{ 'is-active' if request.endpoint in ['messages', 'create_chat_group', 'send_chat_message'] else '' }}" href="{{ url_for('messages') }}" title="Messages" aria-label="Messages"><span class="sidebar-nav-icon icon-messages" aria-hidden="true"></span>{% if unread_messages %}<span class="sidebar-notification-badge" aria-label="{{ unread_messages }} unread messages">{{ unread_messages if unread_messages < 100 else "99+" }}</span>{% endif %}</a>
-</div>
 </nav>
 </aside>
 <main class="content-area">
@@ -74,6 +70,7 @@
 {% block content %}{% endblock %}
 </main>
 </div>
+<a class="sidebar-message-float {{ 'is-active' if request.endpoint in ['messages', 'create_chat_group', 'send_chat_message'] else '' }}" href="{{ url_for('messages') }}" title="Messages" aria-label="Messages"><span class="sidebar-nav-icon icon-messages" aria-hidden="true"></span>{% if unread_messages %}<span class="sidebar-notification-badge" aria-label="{{ unread_messages }} unread messages">{{ unread_messages if unread_messages < 100 else "99+" }}</span>{% endif %}</a>
 <div class="profile-preview-modal" id="sidebar-profile-preview-modal" role="dialog" aria-modal="true" aria-labelledby="sidebar-profile-preview-title" hidden>
     <div class="profile-preview-modal-content"><button type="button" class="profile-preview-close" id="sidebar-profile-preview-close" aria-label="Close preview">&times;</button><h2 class="h5" id="sidebar-profile-preview-title">Profile picture</h2><img id="sidebar-profile-preview-image" class="profile-preview-large" src="" alt=""></div>
 </div>
