@@ -49,7 +49,6 @@
 </aside>
 <main class="content-area">
 <header class="app-topbar">
-<div class="app-topbar-context"><span class="app-topbar-dot"></span><span>ITEMS control desk</span></div>
 <div class="topbar-account">
 <button class="topbar-account-toggle" type="button" aria-expanded="false" aria-controls="topbar-account-menu">
 {% if g.current_user.has_profile_picture %}<img src="{{ url_for('profile_picture', user_id=g.current_user.id) }}" alt="">{% else %}<span class="topbar-account-avatar">{{ session.get('full_name', 'U')[:1]|upper }}</span>{% endif %}

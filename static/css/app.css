@@ -3275,7 +3275,30 @@ body {
 .icon-categories::before { content: "▦"; }
 .icon-offices::before { content: "⌂"; }
 .icon-history::before { content: "◌"; }
-.icon-messages::before { content: "◍"; }
+.icon-messages {
+    position: relative;
+}
+
+.icon-messages::before {
+    width: 15px;
+    height: 11px;
+    border: 1.5px solid currentColor;
+    border-radius: 4px;
+    content: "";
+}
+
+.icon-messages::after {
+    position: absolute;
+    bottom: 3px;
+    left: 4px;
+    width: 5px;
+    height: 5px;
+    border-bottom: 1.5px solid currentColor;
+    border-left: 1.5px solid currentColor;
+    background: transparent;
+    content: "";
+    transform: skewY(-28deg);
+}
 .icon-users::before { content: "♙"; }
 .icon-profile::before { content: "◉"; }
 .icon-logout::before { content: "↪"; }
@@ -3807,6 +3830,37 @@ body {
 
     .equipment-category-link {
         flex-basis: 125px;
+    }
+}
+
+@media (max-width: 900px) {
+    .sidebar-user {
+        width: min(100%, 300px);
+        max-width: 300px;
+        margin-right: auto;
+        margin-left: auto;
+        padding: 10px 11px;
+    }
+}
+
+@media (max-width: 520px) {
+    .sidebar-user {
+        width: min(100%, 270px);
+        max-width: 270px;
+        padding: 8px 10px;
+    }
+
+    .sidebar-user-avatar {
+        width: 38px;
+        height: 38px;
+    }
+
+    .sidebar-user-info strong {
+        font-size: 0.72rem;
+    }
+
+    .sidebar-user-role {
+        font-size: 0.52rem;
     }
 }
 
