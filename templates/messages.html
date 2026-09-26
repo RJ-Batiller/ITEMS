@@ -36,6 +36,7 @@
     var replyPreviewText = document.getElementById("reply-preview-text");
     var composer = document.querySelector(".messenger-composer");
     var composerInput = composer.querySelector("textarea[name='message']");
+    var composerSubmit = composer.querySelector("button[type='submit']");
     var lastId = Array.from(list.querySelectorAll("[data-message-id]")).reduce(function (max, element) { return Math.max(max, Number(element.dataset.messageId)); }, 0);
     function escapeHtml(value) { return String(value == null ? "" : value).replace(/[&<>'"]/g, function (character) { return {"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;","\"":"&quot;"}[character]; }); }
     function addMessages(messages) {
@@ -63,9 +64,13 @@
         if (event.key !== "Enter" || event.shiftKey) return;
         event.preventDefault();
         if (composerInput.value.trim() || document.getElementById("message-files").files.length) {
-            if (composer.requestSubmit) composer.requestSubmit();
-            else composer.submit();
+            composerSubmit.click();
         }
+    });
+    composer.addEventListener("submit", function () {
+        composerInput.value = "";
+        composerSubmit.disabled = true;
+        composerSubmit.textContent = "Sending...";
     });
     document.addEventListener("click", function (event) {
         var button = event.target.closest(".message-reply-button");
