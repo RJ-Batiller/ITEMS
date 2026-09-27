@@ -217,7 +217,7 @@ def equipment():
             c.name AS category_name,
             o.name AS office_name,
             u.full_name AS created_by_name,
-            a.person_name AS accountable_person,
+            COALESCE(accountable_user.full_name, a.person_name) AS accountable_person,
             a.accountable_user_id,
             a.assigned_at AS accountable_assigned_at
         FROM equipment e
@@ -234,6 +234,9 @@ def equipment():
         LEFT JOIN accountability a
             ON e.id = a.equipment_id
             AND a.is_current = 1
+
+        LEFT JOIN users accountable_user
+            ON a.accountable_user_id = accountable_user.id
 
     """
 
@@ -287,7 +290,7 @@ def equipment():
                 OR c.name LIKE %s
                 OR o.name LIKE %s
                 OR e.status LIKE %s
-                OR a.person_name LIKE %s
+                OR COALESCE(accountable_user.full_name, a.person_name) LIKE %s
                 OR u.full_name LIKE %s
             )
         """)
@@ -475,7 +478,7 @@ def view_equipment(item_id):
             c.name AS category_name,
             o.name AS office_name,
             u.full_name AS created_by_name,
-            a.person_name AS accountable_person,
+            COALESCE(accountable_user.full_name, a.person_name) AS accountable_person,
             a.person_position AS accountable_position,
             ao.name AS accountable_office_name,
             a.accountable_user_id,
@@ -494,6 +497,9 @@ def view_equipment(item_id):
         LEFT JOIN accountability a
             ON e.id = a.equipment_id
             AND a.is_current = 1
+
+        LEFT JOIN users accountable_user
+            ON a.accountable_user_id = accountable_user.id
 
         LEFT JOIN offices ao
             ON a.office_id = ao.id
@@ -1057,7 +1063,7 @@ def view_equipment_action_request(request_id):
             e.status AS equipment_status,
             c.name AS category_name,
             o.name AS office_name,
-            a.person_name AS current_accountable_person,
+            COALESCE(accountable_user.full_name, a.person_name) AS current_accountable_person,
             a.person_position AS current_accountable_position,
             ao.name AS current_accountable_office,
             a.assigned_at AS current_accountable_assigned_at,
@@ -1068,6 +1074,7 @@ def view_equipment_action_request(request_id):
         LEFT JOIN categories c ON c.id = e.category_id
         LEFT JOIN offices o ON o.id = e.office_id
         LEFT JOIN accountability a ON a.equipment_id = e.id AND a.is_current = 1
+        LEFT JOIN users accountable_user ON a.accountable_user_id = accountable_user.id
         LEFT JOIN offices ao ON ao.id = a.office_id
         JOIN users u ON u.id = r.requested_by
         WHERE r.id = %s
@@ -1297,7 +1304,7 @@ def approve_equipment_action_request(request_id):
                 e.status AS equipment_status,
                 c.name AS category_name,
                 o.name AS office_name,
-                a.person_name AS current_accountable_person,
+                COALESCE(accountable_user.full_name, a.person_name) AS current_accountable_person,
                 a.person_position AS current_accountable_position,
                 ao.name AS current_accountable_office,
                 a.assigned_at AS current_accountable_assigned_at,
@@ -1307,6 +1314,7 @@ def approve_equipment_action_request(request_id):
             LEFT JOIN categories c ON c.id = e.category_id
             LEFT JOIN offices o ON o.id = e.office_id
             LEFT JOIN accountability a ON a.equipment_id = e.id AND a.is_current = 1
+            LEFT JOIN users accountable_user ON a.accountable_user_id = accountable_user.id
             LEFT JOIN offices ao ON ao.id = a.office_id
             WHERE r.id = %s AND r.status = 'Pending'
         """, (request_id,))
