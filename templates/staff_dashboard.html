@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="dashboard-hero">
+    <div>
+        <p class="catalog-kicker mb-2">Staff workspace</p>
+        <h1 class="dashboard-hero-title">My inventory desk</h1>
+        <p class="text-muted mb-0">Track equipment you submitted or currently hold, plus your latest activity.</p>
+    </div>
+    <div class="dashboard-hero-actions">
+        <a href="{{ url_for('equipment') }}" class="btn btn-primary">Browse equipment</a>
+        <a href="{{ url_for('transactions') }}" class="btn btn-outline-dark">My activity</a>
+    </div>
+</section>
+
+<div class="equipment-metric-grid dashboard-equipment-metrics" aria-label="My inventory summary">
+    <div class="equipment-metric equipment-metric-featured"><span class="equipment-metric-eyebrow">My Equipment</span><strong>{{ all_equipment }}</strong><span>Items in your workspace</span></div>
+    <div class="equipment-metric"><span class="equipment-metric-eyebrow">Active</span><strong>{{ total }}</strong><span>Items not archived</span></div>
+    <div class="equipment-metric"><span class="equipment-metric-eyebrow">Available</span><strong>{{ available }}</strong><span>Ready for use</span></div>
+    <div class="equipment-metric"><span class="equipment-metric-eyebrow">Assigned</span><strong>{{ assigned }}</strong><span>Currently accountable</span></div>
+    <div class="equipment-metric"><span class="equipment-metric-eyebrow">Maintenance</span><strong>{{ maintenance }}</strong><span>Needs attention</span></div>
+</div>
+
+<div class="row g-4">
+    <div class="col-xl-7">
+        <section class="card dashboard-panel h-100"><div class="card-body">
+            <div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Your equipment</p><h2>Recent inventory</h2></div><a class="dashboard-panel-link-inline" href="{{ url_for('equipment') }}">Open catalog</a></div>
+            <div class="dashboard-activity">
+                {% for item in staff_equipment %}<a class="dashboard-activity-row" href="{{ url_for('view_equipment', item_id=item.id) }}"><span class="dashboard-activity-marker"></span><span class="dashboard-activity-main"><strong>{{ item.name }}</strong><span>{{ item.asset_code }} <em>{{ item.category_name or 'Uncategorized' }}</em></span></span><span class="status-badge {% if item.status == 'Available' %}status-available{% elif item.status == 'Assigned' %}status-assigned{% else %}status-maintenance{% endif %}">{{ item.status }}</span></a>{% else %}<div class="dashboard-empty">No equipment is connected to your account yet.</div>{% endfor %}
+            </div>
+        </div></section>
+    </div>
+    <div class="col-xl-5">
+        <section class="card dashboard-panel h-100 dashboard-health-panel"><div class="card-body">
+            <div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Inventory health</p><h2>Your readiness</h2></div><span class="dashboard-radar-mark">MY DESK</span></div>
+            <div class="dashboard-readiness"><div class="dashboard-readiness-ring" data-readiness="{{ ready_rate }}"><span>{{ ready_rate }}<small>%</small></span></div><div><strong>Ready or accountable</strong><p class="text-muted mb-0">{{ available + assigned }} active items are ready for use or assigned to a person.</p></div></div>
+            <div class="dashboard-status-strip"><span><i class="status-dot dot-maintenance"></i>{{ maintenance }} maintenance</span><span><i class="status-dot dot-archived"></i>{{ archived }} archived</span></div>
+        </div></section>
+    </div>
+</div>
+
+<div class="row g-4 mt-1">
+    <div class="col-lg-7"><section class="card dashboard-panel h-100"><div class="card-body"><div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Your activity</p><h2>Recent transactions</h2></div><strong class="dashboard-period-total">{{ activity_30d }}<small> events</small></strong></div><div class="dashboard-activity">{% for transaction in recent_transactions %}<a class="dashboard-activity-row" href="{{ url_for('view_equipment', item_id=transaction.equipment_id) }}"><span class="dashboard-activity-marker"></span><span class="dashboard-activity-main"><strong>{{ transaction.action }}</strong><span>{{ transaction.equipment_name }} <em>{{ transaction.asset_code }}</em></span></span><span class="dashboard-activity-meta"><small>{{ transaction.created_at }}</small></span></a>{% else %}<div class="dashboard-empty">No recent activity.</div>{% endfor %}</div><a class="dashboard-panel-link" href="{{ url_for('transactions') }}">View activity history <span>-></span></a></div></section></div>
+    <div class="col-lg-5"><section class="card dashboard-panel h-100 dashboard-maintenance-panel"><div class="card-body"><div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Service queue</p><h2>Maintenance</h2></div><span class="dashboard-queue-badge">{{ open_maintenance|length }} open</span></div><div class="dashboard-maintenance-summary"><strong>{{ completed_maintenance_30d }}</strong><span>completed in the last 30 days</span></div><div class="dashboard-maintenance-list">{% for item in open_maintenance %}<a class="dashboard-maintenance-row" href="{{ url_for('equipment_maintenance', item_id=item.equipment_id) }}"><span><strong>{{ item.equipment_name }}</strong><small>{{ item.asset_code }} | {{ item.started_at }}</small></span><span class="small text-danger">View</span></a>{% else %}<div class="dashboard-empty">No open maintenance items.</div>{% endfor %}</div></div></section></div>
+</div>
+
+<script>
+(function () {
+    document.querySelectorAll("[data-readiness]").forEach(function (element) {
+        var readiness = Number(element.dataset.readiness);
+        element.style.setProperty("--readiness", (Number.isFinite(readiness) ? Math.max(0, Math.min(100, readiness)) : 0) + "%");
+    });
+}());
+</script>
+{% endblock %}

@@ -54,6 +54,30 @@ def dashboard():
     disposed = status_counts.get("Disposed", 0)
     all_equipment = sum(status_counts.values())
 
+    staff_equipment = []
+    if staff_scope:
+        cur.execute(f"""
+            SELECT
+                e.id,
+                e.asset_code,
+                e.name,
+                e.status,
+                c.name AS category_name,
+                o.name AS office_name,
+                COALESCE(accountable_user.full_name, a.person_name) AS accountable_person
+            FROM equipment e
+            LEFT JOIN categories c ON c.id = e.category_id
+            LEFT JOIN offices o ON o.id = e.office_id
+            LEFT JOIN accountability a
+                ON a.equipment_id = e.id AND a.is_current = 1
+            LEFT JOIN users accountable_user
+                ON a.accountable_user_id = accountable_user.id
+            WHERE {staff_equipment_filter}
+            ORDER BY e.updated_at DESC, e.id DESC
+            LIMIT 8
+        """, staff_equipment_params)
+        staff_equipment = cur.fetchall()
+
     cur.execute(f"""
         SELECT
             t.created_at,
@@ -211,8 +235,9 @@ def dashboard():
     cur.close()
     conn.close()
 
+    template_name = "staff_dashboard.html" if staff_scope else "dashboard.html"
     return render_template(
-        "dashboard.html",
+        template_name,
         total=total,
         all_equipment=all_equipment,
         available=available,
@@ -231,5 +256,6 @@ def dashboard():
         category_max=category_max,
         office_max=office_max,
         activity_max=activity_max,
-        activity_30d=activity_30d
+        activity_30d=activity_30d,
+        staff_equipment=staff_equipment
     )
