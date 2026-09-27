@@ -2,9 +2,9 @@
 {% block content %}
 <section class="dashboard-hero">
     <div>
-        <p class="catalog-kicker mb-2">Staff workspace</p>
+        <p class="catalog-kicker mb-2">{{ session.get('login_greeting', 'Welcome') }}</p>
         <h1 class="dashboard-hero-title">My inventory desk</h1>
-        <p class="text-muted mb-0">Track equipment you submitted or currently hold, plus your latest activity.</p>
+        <p class="text-muted mb-0"><span class="staff-workspace-label">Staff workspace</span> Track equipment you submitted or currently hold, plus your latest activity.</p>
     </div>
     <div class="dashboard-hero-actions">
         <a href="{{ url_for('equipment') }}" class="btn btn-primary">Browse equipment</a>
