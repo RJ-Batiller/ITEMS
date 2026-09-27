@@ -474,6 +474,12 @@ def parse_feature_permissions(value):
 def can_perform_action(role_name, action, feature_permissions=None):
     """Return whether a role/user may perform a named application action."""
     permissions = parse_feature_permissions(feature_permissions)
+    if (
+        (role_name or "").strip().lower() == STAFF_ROLE
+        and action in EQUIPMENT_WRITE_ACTIONS
+        and permissions.get("view_all_equipment") is True
+    ):
+        return False
     if action in permissions:
         return bool(permissions[action])
     return role_allows_action(role_name, action)
