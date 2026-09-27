@@ -29,6 +29,22 @@ EQUIPMENT_ACTION_GROUPS = {
 }
 
 
+def _staff_can_view_equipment(equipment):
+    """Match QR access to the equipment catalog visibility rules."""
+    if not equipment or not is_staff_role(g.current_user["role_name"]):
+        return bool(equipment)
+    can_view_all = can_perform_action(
+        g.current_user["role_name"],
+        "view_all_equipment",
+        g.current_user.get("feature_permissions"),
+    )
+    return (
+        can_view_all
+        or equipment["created_by"] == g.current_user["id"]
+        or equipment.get("accountable_user_id") == g.current_user["id"]
+    )
+
+
 def _queue_organization_request(entity_type, request_data):
     conn = db()
     cur = conn.cursor(dictionary=True)
@@ -1012,9 +1028,8 @@ def equipment_qr(item_id):
 
     equipment = cur.fetchone()
 
-    if equipment and is_staff_role(g.current_user["role_name"]):
-        if equipment["created_by"] != g.current_user["id"] and equipment["accountable_user_id"] != g.current_user["id"]:
-            equipment = None
+    if not _staff_can_view_equipment(equipment):
+        equipment = None
 
     cur.close()
     conn.close()
@@ -1042,9 +1057,8 @@ def equipment_qr_image(item_id):
         WHERE e.id = %s
     """, (item_id,))
     equipment = cur.fetchone()
-    if equipment and is_staff_role(g.current_user["role_name"]):
-        if equipment["created_by"] != g.current_user["id"] and equipment["accountable_user_id"] != g.current_user["id"]:
-            equipment = None
+    if not _staff_can_view_equipment(equipment):
+        equipment = None
     cur.close()
     conn.close()
 
@@ -1094,9 +1108,8 @@ def equipment_qr_print(item_id):
     """, (item_id,))
 
     equipment = cur.fetchone()
-    if equipment and is_staff_role(g.current_user["role_name"]):
-        if equipment["created_by"] != g.current_user["id"] and equipment["accountable_user_id"] != g.current_user["id"]:
-            equipment = None
+    if not _staff_can_view_equipment(equipment):
+        equipment = None
     cur.close()
     conn.close()
 
