@@ -64,7 +64,7 @@
      HIDDEN FOR WORKER
 ========================================================= -->
 
-{% if is_staff_role(session.get('role', '')) or session.get('role', '').lower() in ['admin', 'super admin'] %}
+{% if user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'add') %}
 
 <div class="card table-card shadow-sm mb-4">
 

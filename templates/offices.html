@@ -27,8 +27,8 @@
 </div>
 
 {% set can_manage_offices = user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'offices') %}
-{% set can_request_offices = is_staff_role(g.current_user.role_name) %}
-{% set show_office_controls = can_manage_offices or can_request_offices %}
+{% set can_request_offices = false %}
+{% set show_office_controls = can_manage_offices %}
 
 {% if can_manage_offices or can_request_offices %}
 <div class="card shadow-sm mb-3">

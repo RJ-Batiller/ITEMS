@@ -27,8 +27,8 @@
 </div>
 
 {% set can_manage_categories = user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'categories') %}
-{% set can_request_categories = is_staff_role(g.current_user.role_name) %}
-{% set show_category_controls = can_manage_categories or can_request_categories %}
+{% set can_request_categories = false %}
+{% set show_category_controls = can_manage_categories %}
 
 {% if can_manage_categories or can_request_categories %}
 <div class="card shadow-sm mb-3">
