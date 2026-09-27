@@ -1,6 +1,9 @@
 """Database connection and schema initialization for the raw-SQL application."""
 
+from threading import Lock
+
 import mysql.connector
+from mysql.connector import pooling
 
 from config import Config
 
@@ -26,6 +29,9 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
 _maintenance_schema_ready = False
 _profile_schema_ready = False
 _message_schema_ready = False
+_connection_pool = None
+_pool_lock = Lock()
+_schema_lock = Lock()
 
 
 def ensure_profile_schema(cur):
@@ -88,14 +94,24 @@ def ensure_message_schema(cur):
 
 
 def get_connection():
-    """Open a configured MySQL connection."""
-    conn = mysql.connector.connect(
-        host=Config.DB_HOST,
-        port=Config.DB_PORT,
-        user=Config.DB_USER,
-        password=Config.DB_PASSWORD,
-        database=Config.DB_NAME,
-    )
+    """Get a pooled MySQL connection with a bounded connection wait."""
+    global _connection_pool
+    if _connection_pool is None:
+        with _pool_lock:
+            if _connection_pool is None:
+                _connection_pool = pooling.MySQLConnectionPool(
+                    pool_name="items_db_pool",
+                    pool_size=Config.DB_POOL_SIZE,
+                    pool_reset_session=True,
+                    connection_timeout=Config.DB_CONNECT_TIMEOUT,
+                    host=Config.DB_HOST,
+                    port=Config.DB_PORT,
+                    user=Config.DB_USER,
+                    password=Config.DB_PASSWORD,
+                    database=Config.DB_NAME,
+                )
+
+    conn = _connection_pool.get_connection()
     # MySQL TIMESTAMP values are converted using the connection timezone.
     # Keep database reads and CURRENT_TIMESTAMP writes on Philippine time.
     cursor = conn.cursor()
@@ -111,15 +127,17 @@ def get_db_connection():
     global _maintenance_schema_ready, _profile_schema_ready, _message_schema_ready
     conn = get_connection()
     if not _maintenance_schema_ready:
-        cur = conn.cursor()
-        try:
-            cur.execute(MAINTENANCE_SCHEMA_SQL)
-            ensure_profile_schema(cur)
-            ensure_message_schema(cur)
-            conn.commit()
-            _maintenance_schema_ready = True
-            _profile_schema_ready = True
-            _message_schema_ready = True
-        finally:
-            cur.close()
+        with _schema_lock:
+            if not _maintenance_schema_ready:
+                cur = conn.cursor()
+                try:
+                    cur.execute(MAINTENANCE_SCHEMA_SQL)
+                    ensure_profile_schema(cur)
+                    ensure_message_schema(cur)
+                    conn.commit()
+                    _maintenance_schema_ready = True
+                    _profile_schema_ready = True
+                    _message_schema_ready = True
+                finally:
+                    cur.close()
     return conn
