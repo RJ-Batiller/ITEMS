@@ -124,10 +124,9 @@ def transactions():
                     OR e.created_by = %s
                     OR EXISTS (
                         SELECT 1
-                        FROM accountability current_accountability
-                        WHERE current_accountability.equipment_id = e.id
-                          AND current_accountability.is_current = 1
-                          AND current_accountability.accountable_user_id = %s
+                        FROM accountability historical_accountability
+                        WHERE historical_accountability.equipment_id = e.id
+                          AND historical_accountability.accountable_user_id = %s
                     )
                 )
             """)
@@ -223,10 +222,9 @@ def transaction_detail(transaction_id):
             OR e.created_by = %s
             OR EXISTS (
                 SELECT 1
-                FROM accountability current_accountability
-                WHERE current_accountability.equipment_id = e.id
-                  AND current_accountability.is_current = 1
-                  AND current_accountability.accountable_user_id = %s
+                FROM accountability historical_accountability
+                WHERE historical_accountability.equipment_id = e.id
+                  AND historical_accountability.accountable_user_id = %s
             )
         )
     """ if staff_user and not can_view_all else "1 = 1"
@@ -288,10 +286,9 @@ def equipment_transactions(item_id):
             OR e.created_by = %s
             OR EXISTS (
                 SELECT 1
-                FROM accountability current_accountability
-                WHERE current_accountability.equipment_id = e.id
-                  AND current_accountability.is_current = 1
-                  AND current_accountability.accountable_user_id = %s
+                FROM accountability historical_accountability
+                WHERE historical_accountability.equipment_id = e.id
+                  AND historical_accountability.accountable_user_id = %s
             )
         )
     """ if staff_user and not can_view_all else "1 = 1"
@@ -323,10 +320,9 @@ def equipment_transactions(item_id):
             e.created_by = %s
             OR EXISTS (
                 SELECT 1
-                FROM accountability current_accountability
-                WHERE current_accountability.equipment_id = e.id
-                  AND current_accountability.is_current = 1
-                  AND current_accountability.accountable_user_id = %s
+                FROM accountability historical_accountability
+                WHERE historical_accountability.equipment_id = e.id
+                  AND historical_accountability.accountable_user_id = %s
             )
         )
     """ if staff_user and not can_view_all else "1 = 1"
@@ -453,10 +449,9 @@ def organization_history():
                               OR visible_equipment.created_by = %s
                               OR EXISTS (
                                   SELECT 1
-                                  FROM accountability current_accountability
-                                  WHERE current_accountability.equipment_id = visible_equipment.id
-                                    AND current_accountability.is_current = 1
-                                    AND current_accountability.accountable_user_id = %s
+                                  FROM accountability historical_accountability
+                                  WHERE historical_accountability.equipment_id = visible_equipment.id
+                                    AND historical_accountability.accountable_user_id = %s
                               )
                           )
                     )

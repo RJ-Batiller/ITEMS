@@ -102,10 +102,9 @@ def dashboard():
             OR e.created_by = %s
             OR EXISTS (
                 SELECT 1
-                FROM accountability current_accountability
-                WHERE current_accountability.equipment_id = e.id
-                  AND current_accountability.is_current = 1
-                  AND current_accountability.accountable_user_id = %s
+                FROM accountability historical_accountability
+                WHERE historical_accountability.equipment_id = e.id
+                  AND historical_accountability.accountable_user_id = %s
             )
         )
         ORDER BY t.created_at DESC
