@@ -415,10 +415,10 @@ def organization_history():
     q = request.args.get("q", "").strip()
     entity_type = request.args.get("entity_type", "").strip()
     action = request.args.get("action", "").strip()
-    allowed_types = {"Account", "Category", "Office", "Equipment"}
+    allowed_types = {"Account", "Category", "Office"}
     if entity_type not in allowed_types:
         entity_type = ""
-    if action not in ORGANIZATION_ACTION_GROUPS and action not in EQUIPMENT_STATUS_GROUPS:
+    if action not in ORGANIZATION_ACTION_GROUPS:
         action = ""
 
     conn = db()
@@ -429,7 +429,7 @@ def organization_history():
         FROM organization_history h
         JOIN users u ON u.id = h.user_id
     """
-    filters = ["h.entity_type IN ('Account', 'Category', 'Office', 'Equipment')"]
+    filters = ["h.entity_type IN ('Account', 'Category', 'Office')"]
     params = []
     if q:
         filters.append("(h.entity_name LIKE %s OR h.details LIKE %s OR u.full_name LIKE %s)")
@@ -438,54 +438,19 @@ def organization_history():
     if entity_type:
         filters.append("h.entity_type = %s")
         params.append(entity_type)
-    if action in EQUIPMENT_STATUS_GROUPS:
-        filters.append("h.action LIKE %s")
-        params.append(EQUIPMENT_STATUS_GROUPS[action])
-    elif action:
+    if action:
         values = ORGANIZATION_ACTION_GROUPS[action]
         filters.append("h.action IN (" + ", ".join(["%s"] * len(values)) + ")")
         params.extend(values)
     if is_staff_role(g.current_user["role_name"]):
-        can_view_all = can_perform_action(
-            g.current_user["role_name"],
-            "view_all_equipment",
-            g.current_user.get("feature_permissions"),
-        )
-        filters.append("""
-            (
-                h.user_id = %s
-                OR (
-                    h.entity_type = 'Equipment'
-                    AND EXISTS (
-                        SELECT 1
-                        FROM equipment visible_equipment
-                        WHERE visible_equipment.id = h.entity_id
-                          AND (
-                              %s = 1
-                              OR visible_equipment.created_by = %s
-                              OR EXISTS (
-                                  SELECT 1
-                                  FROM accountability historical_accountability
-                                  WHERE historical_accountability.equipment_id = visible_equipment.id
-                                    AND historical_accountability.accountable_user_id = %s
-                              )
-                          )
-                    )
-                )
-            )
-        """)
-        params.extend([
-            g.current_user["id"],
-            1 if can_view_all else 0,
-            g.current_user["id"],
-            g.current_user["id"],
-        ])
+        filters.append("h.user_id = %s")
+        params.append(g.current_user["id"])
     if filters:
         sql += " WHERE " + " AND ".join(filters)
     sql += " ORDER BY h.created_at DESC, h.id DESC"
     cur.execute(sql, params)
     history = cur.fetchall()
-    action_options = tuple(ORGANIZATION_ACTION_GROUPS.keys()) + tuple(EQUIPMENT_STATUS_GROUPS.keys())
+    action_options = tuple(ORGANIZATION_ACTION_GROUPS.keys())
     cur.close()
     conn.close()
     return render_template("organization_history.html", history=history, q=q, entity_type=entity_type, action=action, action_options=action_options)
