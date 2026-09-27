@@ -47,21 +47,6 @@
         <p class="small text-muted px-2">No categories yet.</p>
         {% endfor %}
 
-        <div class="equipment-sidebar-heading mt-4">Queues</div>
-        <a
-            href="{{ url_for('equipment', status='Under Maintenance', q=q) }}"
-            class="equipment-category-link {% if selected_status == 'Under Maintenance' %}is-active{% endif %}"
-        >
-            <span>Maintenance</span>
-            <span class="equipment-category-count">{{ status_counts.get('Under Maintenance', 0) }}</span>
-        </a>
-        <a
-            href="{{ url_for('equipment', status='Archived', q=q) }}"
-            class="equipment-category-link {% if selected_status == 'Archived' %}is-active{% endif %}"
-        >
-            <span>Archive</span>
-            <span class="equipment-category-count">{{ status_counts.get('Archived', 0) }}</span>
-        </a>
         <a
             href="{{ url_for('equipment', status='Disposed', q=q) }}"
             class="equipment-category-link {% if selected_status == 'Disposed' %}is-active{% endif %}"
