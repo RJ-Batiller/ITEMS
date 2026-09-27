@@ -69,7 +69,7 @@ def test_staff_feature_permissions_override_role_defaults():
 
     assert can_perform_action("Staff", "edit", {"edit": False}) is False
     assert can_perform_action("Staff", "edit", {"edit": True}) is True
-    assert can_perform_action("Staff", "edit", {"edit": True, "view_all_equipment": True}) is False
+    assert can_perform_action("Staff", "edit", {"edit": True, "view_all_equipment": True}) is True
     assert can_perform_action("Staff", "view", {"view_all_equipment": True}) is True
     assert can_perform_action("Staff", "view_all_equipment", {}) is False
     assert can_perform_action("Admin", "view_all_equipment", {}) is True

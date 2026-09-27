@@ -30,11 +30,18 @@ def _staff_owns_equipment(equipment):
 
 
 def _staff_can_manage_equipment(equipment):
-    """Allow Staff to act on equipment they created or currently hold."""
+    """Allow Staff to act on owned equipment or the full catalog when permitted."""
+    can_view_all = can_perform_action(
+        g.current_user["role_name"],
+        "view_all_equipment",
+        g.current_user.get("feature_permissions"),
+    )
     return (
         is_staff_role(g.current_user["role_name"])
         and equipment
         and (
+            can_view_all
+            or
             equipment.get("created_by") == g.current_user["id"]
             or equipment.get("accountable_user_id") == g.current_user["id"]
         )
@@ -449,7 +456,8 @@ def equipment():
         selected_status=status,
         selected_item_type=item_type,
         item_type_counts=item_type_counts,
-        status_counts=status_counts
+        status_counts=status_counts,
+        can_view_all_equipment=can_view_all,
     )
 
 

@@ -373,9 +373,9 @@
                             <!-- EDIT
                                  HIDDEN FOR WORKER -->
 
-                            {% if not is_staff_role(session.get('role', '')) or e.created_by == session.get('user_id') or e.accountable_user_id == session.get('user_id') %}
+                            {% if not is_staff_role(session.get('role', '')) or can_view_all_equipment or e.created_by == session.get('user_id') or e.accountable_user_id == session.get('user_id') %}
 
-                            {% if (not is_staff_role(session.get('role', '')) or e.created_by == session.get('user_id') or e.accountable_user_id == session.get('user_id')) and user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'edit') %}
+                            {% if (not is_staff_role(session.get('role', '')) or can_view_all_equipment or e.created_by == session.get('user_id') or e.accountable_user_id == session.get('user_id')) and user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'edit') %}
                             {% if e.status != 'Disposed' %}
                             <a
                                 href="{{ url_for(
@@ -447,7 +447,7 @@
                             <!-- ARCHIVE
                                  HIDDEN FOR WORKER -->
 
-                            {% if (not is_staff_role(session.get('role', '')) or (e.approval_status == 'Approved' and (e.created_by == session.get('user_id') or e.accountable_user_id == session.get('user_id'))) ) and (user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'archive') or user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'dispose')) %}
+                            {% if (not is_staff_role(session.get('role', '')) or (e.approval_status == 'Approved' and (can_view_all_equipment or e.created_by == session.get('user_id') or e.accountable_user_id == session.get('user_id'))) ) and (user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'archive') or user_feature_enabled(g.current_user.feature_permissions, g.current_user.role_name, 'dispose')) %}
 
                                 {% if e.status == 'Archived' %}
                                 {% if not is_staff_role(session.get('role', '')) %}

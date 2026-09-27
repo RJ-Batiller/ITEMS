@@ -494,10 +494,6 @@ def update_user_permissions(user_id):
         flash("Only Admin and Staff accounts can have feature access changed.", "danger")
         return redirect(url_for("users"))
 
-    # Viewing the full catalog is deliberately read-only for Staff accounts.
-    if target["role_name"].strip().lower() == "staff" and "view_all_equipment" in requested:
-        requested.difference_update(EQUIPMENT_WRITE_ACTIONS)
-
     permissions = {key: key in requested for key, _label in RESTRICTABLE_FEATURES}
     cur.execute(
         "UPDATE users SET feature_permissions = %s WHERE id = %s",
