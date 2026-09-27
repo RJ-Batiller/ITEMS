@@ -2471,12 +2471,11 @@ def dispose_equipment(item_id):
     cur.execute("""
         INSERT INTO organization_history
             (entity_type, entity_id, entity_name, action, details, user_id)
-        VALUES ('Equipment', %s, %s, %s, %s, %s)
+        VALUES ('Equipment', %s, %s, 'Disposed', %s, %s)
     """, (
         item_id,
         equipment["asset_code"],
-        "Re-Assigned" if had_accountability else "Assigned",
-        f"Equipment assigned to {person_name}.",
+        f"Equipment disposed. Reason: {reason}. Reference number: {reference_no or '-'}",
         session["user_id"],
     ))
 
