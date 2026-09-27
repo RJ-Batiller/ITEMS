@@ -112,8 +112,26 @@ def transactions():
     params = []
 
     if is_staff_role(g.current_user["role_name"]):
-        filters.append("(t.user_id = %s OR e.created_by = %s)")
-        params.extend([g.current_user["id"], g.current_user["id"]])
+        can_view_all = can_perform_action(
+            g.current_user["role_name"],
+            "view_all_equipment",
+            g.current_user.get("feature_permissions"),
+        )
+        if not can_view_all:
+            filters.append("""
+                (
+                    t.user_id = %s
+                    OR e.created_by = %s
+                    OR EXISTS (
+                        SELECT 1
+                        FROM accountability current_accountability
+                        WHERE current_accountability.equipment_id = e.id
+                          AND current_accountability.is_current = 1
+                          AND current_accountability.accountable_user_id = %s
+                    )
+                )
+            """)
+            params.extend([g.current_user["id"], g.current_user["id"], g.current_user["id"]])
 
     if q:
         filters.append("""
@@ -193,10 +211,28 @@ def transaction_detail(transaction_id):
     conn = db()
     cur = conn.cursor(dictionary=True)
 
-    scope = "(t.user_id = %s OR e.created_by = %s)" if is_staff_role(g.current_user["role_name"]) else "1 = 1"
+    staff_user = is_staff_role(g.current_user["role_name"])
+    can_view_all = can_perform_action(
+        g.current_user["role_name"],
+        "view_all_equipment",
+        g.current_user.get("feature_permissions"),
+    )
+    scope = """
+        (
+            t.user_id = %s
+            OR e.created_by = %s
+            OR EXISTS (
+                SELECT 1
+                FROM accountability current_accountability
+                WHERE current_accountability.equipment_id = e.id
+                  AND current_accountability.is_current = 1
+                  AND current_accountability.accountable_user_id = %s
+            )
+        )
+    """ if staff_user and not can_view_all else "1 = 1"
     params = [transaction_id]
-    if is_staff_role(g.current_user["role_name"]):
-        params.extend([g.current_user["id"], g.current_user["id"]])
+    if staff_user and not can_view_all:
+        params.extend([g.current_user["id"], g.current_user["id"], g.current_user["id"]])
 
     cur.execute(f"""
         SELECT
@@ -240,8 +276,26 @@ def equipment_transactions(item_id):
     conn = db()
     cur = conn.cursor(dictionary=True)
 
-    transaction_scope = "(t.user_id = %s OR e.created_by = %s)" if is_staff_role(g.current_user["role_name"]) else "1 = 1"
-    transaction_scope_params = [g.current_user["id"], g.current_user["id"]] if is_staff_role(g.current_user["role_name"]) else []
+    staff_user = is_staff_role(g.current_user["role_name"])
+    can_view_all = can_perform_action(
+        g.current_user["role_name"],
+        "view_all_equipment",
+        g.current_user.get("feature_permissions"),
+    )
+    transaction_scope = """
+        (
+            t.user_id = %s
+            OR e.created_by = %s
+            OR EXISTS (
+                SELECT 1
+                FROM accountability current_accountability
+                WHERE current_accountability.equipment_id = e.id
+                  AND current_accountability.is_current = 1
+                  AND current_accountability.accountable_user_id = %s
+            )
+        )
+    """ if staff_user and not can_view_all else "1 = 1"
+    transaction_scope_params = [g.current_user["id"], g.current_user["id"], g.current_user["id"]] if staff_user and not can_view_all else []
     cur.execute(f"""
         SELECT
             t.*,
@@ -264,8 +318,19 @@ def equipment_transactions(item_id):
 
     rows = cur.fetchall()
 
-    equipment_scope = "e.created_by = %s" if is_staff_role(g.current_user["role_name"]) else "1 = 1"
-    equipment_scope_params = [g.current_user["id"]] if is_staff_role(g.current_user["role_name"]) else []
+    equipment_scope = """
+        (
+            e.created_by = %s
+            OR EXISTS (
+                SELECT 1
+                FROM accountability current_accountability
+                WHERE current_accountability.equipment_id = e.id
+                  AND current_accountability.is_current = 1
+                  AND current_accountability.accountable_user_id = %s
+            )
+        )
+    """ if staff_user and not can_view_all else "1 = 1"
+    equipment_scope_params = [g.current_user["id"], g.current_user["id"]] if staff_user and not can_view_all else []
     cur.execute(f"""
         SELECT id, asset_code, name
         FROM equipment
@@ -338,7 +403,7 @@ def organization_history():
     q = request.args.get("q", "").strip()
     entity_type = request.args.get("entity_type", "").strip()
     action = request.args.get("action", "").strip()
-    allowed_types = {"Account", "Category", "Office"}
+    allowed_types = {"Account", "Category", "Office", "Equipment"}
     if entity_type not in allowed_types:
         entity_type = ""
     if action not in ORGANIZATION_ACTION_GROUPS and action not in EQUIPMENT_STATUS_GROUPS:
@@ -352,7 +417,7 @@ def organization_history():
         FROM organization_history h
         JOIN users u ON u.id = h.user_id
     """
-    filters = ["h.entity_type IN ('Account', 'Category', 'Office')"]
+    filters = ["h.entity_type IN ('Account', 'Category', 'Office', 'Equipment')"]
     params = []
     if q:
         filters.append("(h.entity_name LIKE %s OR h.details LIKE %s OR u.full_name LIKE %s)")
@@ -369,8 +434,41 @@ def organization_history():
         filters.append("h.action IN (" + ", ".join(["%s"] * len(values)) + ")")
         params.extend(values)
     if is_staff_role(g.current_user["role_name"]):
-        filters.append("h.user_id = %s")
-        params.append(g.current_user["id"])
+        can_view_all = can_perform_action(
+            g.current_user["role_name"],
+            "view_all_equipment",
+            g.current_user.get("feature_permissions"),
+        )
+        filters.append("""
+            (
+                h.user_id = %s
+                OR (
+                    h.entity_type = 'Equipment'
+                    AND EXISTS (
+                        SELECT 1
+                        FROM equipment visible_equipment
+                        WHERE visible_equipment.id = h.entity_id
+                          AND (
+                              %s = 1
+                              OR visible_equipment.created_by = %s
+                              OR EXISTS (
+                                  SELECT 1
+                                  FROM accountability current_accountability
+                                  WHERE current_accountability.equipment_id = visible_equipment.id
+                                    AND current_accountability.is_current = 1
+                                    AND current_accountability.accountable_user_id = %s
+                              )
+                          )
+                    )
+                )
+            )
+        """)
+        params.extend([
+            g.current_user["id"],
+            1 if can_view_all else 0,
+            g.current_user["id"],
+            g.current_user["id"],
+        ])
     if filters:
         sql += " WHERE " + " AND ".join(filters)
     sql += " ORDER BY h.created_at DESC, h.id DESC"

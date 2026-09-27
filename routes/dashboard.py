@@ -12,7 +12,13 @@ def dashboard():
 
     conn = db()
     cur = conn.cursor(dictionary=True)
-    staff_scope = is_staff_role(g.current_user["role_name"])
+    staff_dashboard = is_staff_role(g.current_user["role_name"])
+    can_view_all = can_perform_action(
+        g.current_user["role_name"],
+        "view_all_equipment",
+        g.current_user.get("feature_permissions"),
+    )
+    staff_scope = staff_dashboard and not can_view_all
     staff_id = g.current_user["id"]
     staff_equipment_filter = """
         (
@@ -55,7 +61,8 @@ def dashboard():
     all_equipment = sum(status_counts.values())
 
     staff_equipment = []
-    if staff_scope:
+    if staff_dashboard:
+        visible_equipment_filter = staff_equipment_filter if staff_scope else "1 = 1"
         cur.execute(f"""
             SELECT
                 e.id,
@@ -72,10 +79,10 @@ def dashboard():
                 ON a.equipment_id = e.id AND a.is_current = 1
             LEFT JOIN users accountable_user
                 ON a.accountable_user_id = accountable_user.id
-            WHERE {staff_equipment_filter}
+            WHERE {visible_equipment_filter}
             ORDER BY e.updated_at DESC, e.id DESC
             LIMIT 8
-        """, staff_equipment_params)
+        """, staff_equipment_params if staff_scope else ())
         staff_equipment = cur.fetchall()
 
     cur.execute(f"""
@@ -235,7 +242,7 @@ def dashboard():
     cur.close()
     conn.close()
 
-    template_name = "staff_dashboard.html" if staff_scope else "dashboard.html"
+    template_name = "staff_dashboard.html" if staff_dashboard else "dashboard.html"
     return render_template(
         template_name,
         total=total,
