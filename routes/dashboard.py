@@ -242,6 +242,12 @@ def dashboard():
     conn.close()
 
     template_name = "staff_dashboard.html" if staff_dashboard else "dashboard.html"
+    staff_equipment_label = "All Equipment" if can_view_all else "My Equipment"
+    staff_equipment_scope = (
+        "Organization inventory"
+        if can_view_all
+        else "Equipment submitted by you or currently assigned to you"
+    )
     return render_template(
         template_name,
         total=total,
@@ -263,5 +269,7 @@ def dashboard():
         office_max=office_max,
         activity_max=activity_max,
         activity_30d=activity_30d,
-        staff_equipment=staff_equipment
+        staff_equipment=staff_equipment,
+        staff_equipment_label=staff_equipment_label,
+        staff_equipment_scope=staff_equipment_scope,
     )

@@ -4,7 +4,7 @@
     <div>
         <p class="catalog-kicker mb-2">{{ session.get('login_greeting', 'Welcome') }}</p>
         <h1 class="dashboard-hero-title">My inventory desk</h1>
-        <p class="text-muted mb-0"><span class="staff-workspace-label">Staff workspace</span> Track equipment you submitted or currently hold, plus your latest activity.</p>
+        <p class="text-muted mb-0"><span class="staff-workspace-label">Staff workspace</span> {{ staff_equipment_scope }}, plus your latest activity.</p>
     </div>
     <div class="dashboard-hero-actions">
         <a href="{{ url_for('equipment') }}" class="btn btn-primary">Browse equipment</a>
@@ -12,8 +12,8 @@
     </div>
 </section>
 
-<div class="equipment-metric-grid dashboard-equipment-metrics" aria-label="My inventory summary">
-    <div class="equipment-metric equipment-metric-featured"><span class="equipment-metric-eyebrow">My Equipment</span><strong>{{ all_equipment }}</strong><span>Items in your workspace</span></div>
+<div class="equipment-metric-grid dashboard-equipment-metrics" aria-label="{{ staff_equipment_label }} summary">
+    <div class="equipment-metric equipment-metric-featured"><span class="equipment-metric-eyebrow">{{ staff_equipment_label }}</span><strong>{{ all_equipment }}</strong><span>Items visible to you</span></div>
     <div class="equipment-metric"><span class="equipment-metric-eyebrow">Active</span><strong>{{ total }}</strong><span>Items not archived</span></div>
     <div class="equipment-metric"><span class="equipment-metric-eyebrow">Available</span><strong>{{ available }}</strong><span>Ready for use</span></div>
     <div class="equipment-metric"><span class="equipment-metric-eyebrow">Assigned</span><strong>{{ assigned }}</strong><span>Currently accountable</span></div>
@@ -23,9 +23,9 @@
 <div class="row g-4">
     <div class="col-xl-7">
         <section class="card dashboard-panel h-100"><div class="card-body">
-            <div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">Your equipment</p><h2>Recent inventory</h2></div><a class="dashboard-panel-link-inline" href="{{ url_for('equipment') }}">Open catalog</a></div>
+            <div class="dashboard-panel-heading"><div><p class="catalog-kicker mb-1">{{ staff_equipment_label }}</p><h2>Recent inventory</h2></div><a class="dashboard-panel-link-inline" href="{{ url_for('equipment') }}">Open catalog</a></div>
             <div class="dashboard-activity">
-                {% for item in staff_equipment %}<a class="dashboard-activity-row" href="{{ url_for('view_equipment', item_id=item.id) }}"><span class="dashboard-activity-marker"></span><span class="dashboard-activity-main"><strong>{{ item.name }}</strong><span>{{ item.asset_code }} <em>{{ item.category_name or 'Uncategorized' }}</em></span></span><span class="status-badge {% if item.status == 'Available' %}status-available{% elif item.status == 'Assigned' %}status-assigned{% else %}status-maintenance{% endif %}">{{ item.status }}</span></a>{% else %}<div class="dashboard-empty">No equipment is connected to your account yet.</div>{% endfor %}
+                {% for item in staff_equipment %}<a class="dashboard-activity-row" href="{{ url_for('view_equipment', item_id=item.id) }}"><span class="dashboard-activity-marker"></span><span class="dashboard-activity-main"><strong>{{ item.name }}</strong><span>{{ item.asset_code }} <em>{{ item.category_name or 'Uncategorized' }}</em></span></span><span class="status-badge {% if item.status == 'Available' %}status-available{% elif item.status == 'Assigned' %}status-assigned{% else %}status-maintenance{% endif %}">{{ item.status }}</span></a>{% else %}<div class="dashboard-empty">No equipment is visible in this scope yet.</div>{% endfor %}
             </div>
         </div></section>
     </div>
