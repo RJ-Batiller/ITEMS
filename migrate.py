@@ -1,6 +1,7 @@
 ﻿"""Apply numbered SQL migrations to the ITEMS database."""
 
 import os
+from time import sleep
 from pathlib import Path
 
 import mysql.connector
@@ -13,13 +14,24 @@ MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 
 def connect():
-    return mysql.connector.connect(
-        host=os.getenv("DB_HOST", "127.0.0.1"),
-        port=int(os.getenv("DB_PORT", "3306")),
-        user=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASSWORD", ""),
-        database=os.getenv("DB_NAME", "items_db"),
-    )
+    last_error = None
+    retries = max(1, int(os.getenv("DB_CONNECT_RETRIES", "3")))
+    for attempt in range(retries):
+        try:
+            return mysql.connector.connect(
+                host=os.getenv("DB_HOST", "127.0.0.1"),
+                port=int(os.getenv("DB_PORT", "3306")),
+                user=os.getenv("DB_USER", "root"),
+                password=os.getenv("DB_PASSWORD", ""),
+                database=os.getenv("DB_NAME", "items_db"),
+                connection_timeout=max(1, int(os.getenv("DB_CONNECT_TIMEOUT", "10"))),
+            )
+        except mysql.connector.Error as error:
+            last_error = error
+            if attempt + 1 < retries:
+                print(f"Database connection attempt {attempt + 1} failed; retrying...")
+                sleep(min(attempt + 1, 2))
+    raise last_error
 
 
 def apply_migrations():

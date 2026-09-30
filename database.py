@@ -1,6 +1,7 @@
 """Database connection and schema initialization for the raw-SQL application."""
 
 from threading import Lock
+from time import sleep
 
 import mysql.connector
 from mysql.connector import pooling
@@ -94,32 +95,50 @@ def ensure_message_schema(cur):
 
 
 def get_connection():
-    """Get a pooled MySQL connection with a bounded connection wait."""
+    """Get a healthy pooled MySQL connection with bounded retries."""
     global _connection_pool
-    if _connection_pool is None:
-        with _pool_lock:
-            if _connection_pool is None:
-                _connection_pool = pooling.MySQLConnectionPool(
-                    pool_name="items_db_pool",
-                    pool_size=Config.DB_POOL_SIZE,
-                    pool_reset_session=True,
-                    connection_timeout=Config.DB_CONNECT_TIMEOUT,
-                    host=Config.DB_HOST,
-                    port=Config.DB_PORT,
-                    user=Config.DB_USER,
-                    password=Config.DB_PASSWORD,
-                    database=Config.DB_NAME,
-                )
+    last_error = None
 
-    conn = _connection_pool.get_connection()
-    # MySQL TIMESTAMP values are converted using the connection timezone.
-    # Keep database reads and CURRENT_TIMESTAMP writes on Philippine time.
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SET time_zone = '+08:00'")
-    finally:
-        cursor.close()
-    return conn
+    for attempt in range(Config.DB_CONNECT_RETRIES):
+        conn = None
+        try:
+            if _connection_pool is None:
+                with _pool_lock:
+                    if _connection_pool is None:
+                        _connection_pool = pooling.MySQLConnectionPool(
+                            pool_name="items_db_pool",
+                            pool_size=Config.DB_POOL_SIZE,
+                            pool_reset_session=True,
+                            connection_timeout=Config.DB_CONNECT_TIMEOUT,
+                            host=Config.DB_HOST,
+                            port=Config.DB_PORT,
+                            user=Config.DB_USER,
+                            password=Config.DB_PASSWORD,
+                            database=Config.DB_NAME,
+                        )
+
+            conn = _connection_pool.get_connection()
+            # Railway/MySQL can close idle connections while they remain in the pool.
+            conn.ping(reconnect=True, attempts=1, delay=0)
+
+            # MySQL TIMESTAMP values use Philippine time in this application.
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SET time_zone = '+08:00'")
+            finally:
+                cursor.close()
+            return conn
+        except mysql.connector.Error as error:
+            last_error = error
+            if conn is not None:
+                try:
+                    conn.close()
+                except mysql.connector.Error:
+                    pass
+            if attempt + 1 < Config.DB_CONNECT_RETRIES:
+                sleep(min(attempt + 1, 2))
+
+    raise last_error
 
 
 def get_db_connection():
@@ -138,6 +157,9 @@ def get_db_connection():
                     _maintenance_schema_ready = True
                     _profile_schema_ready = True
                     _message_schema_ready = True
+                except Exception:
+                    conn.close()
+                    raise
                 finally:
                     cur.close()
     return conn
