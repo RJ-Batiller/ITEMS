@@ -3,14 +3,15 @@
 <nav class="table-pagination" aria-label="Pagination">
     <span class="table-pagination-summary">Showing {{ pagination.first_item }}-{{ pagination.last_item }} of {{ pagination.total }}</span>
     <div class="table-pagination-controls">
-        {% if pagination.page > 1 %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for(endpoint, page=pagination.page - 1, **params) }}">Previous</a>{% endif %}
+        {% if pagination.page > 1 %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for(endpoint, page=pagination.page - 1, **params) }}">Previous</a>{% else %}<span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">Previous</span>{% endif %}
         <form class="table-pagination-jump" method="get" action="{{ url_for(endpoint) }}">
             {% for key, value in params.items() if value is not none and value != '' %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
             <label class="table-pagination-page" for="page-number-{{ endpoint|replace('_', '-') }}">Page</label>
-            <input class="table-pagination-input" id="page-number-{{ endpoint|replace('_', '-') }}" type="number" name="page" min="1" max="{{ pagination.total_pages }}" value="{{ pagination.page }}" aria-label="Page number" onchange="this.form.submit()">
+            <input class="table-pagination-input" id="page-number-{{ endpoint|replace('_', '-') }}" type="number" name="page" min="1" max="{{ pagination.total_pages }}" value="{{ pagination.page }}" aria-label="Page number">
             <span class="table-pagination-page">of {{ pagination.total_pages }}</span>
+            <button class="btn btn-sm btn-outline-secondary table-pagination-go" type="submit">Go</button>
         </form>
-        {% if pagination.page < pagination.total_pages %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for(endpoint, page=pagination.page + 1, **params) }}">Next</a>{% endif %}
+        {% if pagination.page < pagination.total_pages %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for(endpoint, page=pagination.page + 1, **params) }}">Next</a>{% else %}<span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">Next</span>{% endif %}
     </div>
 </nav>
 {% endif %}

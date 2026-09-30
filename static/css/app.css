@@ -1808,6 +1808,11 @@ body {
     gap: 0.55rem;
 }
 
+.table-pagination .btn {
+    min-width: 4.2rem;
+    white-space: nowrap;
+}
+
 .table-pagination-summary,
 .table-pagination-page {
     color: #6c7480;
@@ -1821,12 +1826,17 @@ body {
 }
 
 .table-pagination-input {
-    width: 3.5rem;
-    padding: 0.3rem 0.4rem;
+    width: 3.2rem;
+    height: 2rem;
+    padding: 0.25rem 0.35rem;
     border: 1px solid rgba(39, 42, 48, 0.25);
     border-radius: 0.35rem;
     color: #272a30;
     text-align: center;
+}
+
+.table-pagination-go {
+    min-width: 2.8rem !important;
 }
 
 .table-pagination-input:focus {
