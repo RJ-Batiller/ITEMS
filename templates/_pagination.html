@@ -1,0 +1,12 @@
+{% macro render_pagination(pagination, endpoint, params) %}
+{% if pagination.total_pages > 1 %}
+<nav class="table-pagination" aria-label="Pagination">
+    <span class="table-pagination-summary">Showing {{ pagination.first_item }}-{{ pagination.last_item }} of {{ pagination.total }}</span>
+    <div class="table-pagination-controls">
+        {% if pagination.page > 1 %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for(endpoint, page=pagination.page - 1, **params) }}">Previous</a>{% endif %}
+        <span class="table-pagination-page">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+        {% if pagination.page < pagination.total_pages %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for(endpoint, page=pagination.page + 1, **params) }}">Next</a>{% endif %}
+    </div>
+</nav>
+{% endif %}
+{% endmacro %}

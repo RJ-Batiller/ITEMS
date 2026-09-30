@@ -28,8 +28,13 @@ def read_profile_picture(uploaded_picture, user_id):
 def users():
     conn = db()
     cur = conn.cursor(dictionary=True)
+    search = clean_text(request.args.get("q", ""), "Search", 120)
+    try:
+        requested_page = int(request.args.get("page", "1"))
+    except ValueError:
+        requested_page = 1
 
-    cur.execute("""
+    user_query = """
         SELECT
             u.id,
             u.username,
@@ -44,9 +49,22 @@ def users():
 
         JOIN roles r
             ON u.role_id = r.id
-
-        ORDER BY u.id DESC
-    """)
+    """
+    user_params = []
+    if search:
+        user_query += """
+            WHERE u.username LIKE %s
+               OR u.full_name LIKE %s
+               OR u.email LIKE %s
+               OR r.name LIKE %s
+        """
+        search_pattern = f"%{search}%"
+        user_params.extend([search_pattern] * 4)
+    count_query = f"SELECT COUNT(*) AS total FROM ({user_query}) filtered_users"
+    cur.execute(count_query, tuple(user_params))
+    pagination = build_pagination(cur.fetchone()["total"], requested_page)
+    user_query += " ORDER BY u.id DESC LIMIT %s OFFSET %s"
+    cur.execute(user_query, [*user_params, pagination["per_page"], pagination["offset"]])
 
     rows = cur.fetchall()
 
@@ -67,6 +85,9 @@ def users():
     return render_template(
         "users.html",
         users=rows,
+        search=search,
+        pagination=pagination,
+        pagination_params={"q": search},
         roles=roles,
         restrictable_features=RESTRICTABLE_FEATURES
     )

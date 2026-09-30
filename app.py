@@ -7,6 +7,7 @@ import re
 import sys
 from functools import wraps
 from datetime import date, datetime, timedelta, timezone
+from math import ceil
 
 from flask import (
     Flask,
@@ -271,6 +272,22 @@ def database_error(error):
 
 def db():
     return get_db_connection()
+
+
+def build_pagination(total, requested_page, per_page=10):
+    """Return consistent paging metadata for server-rendered list pages."""
+    total_pages = max(1, ceil(total / per_page))
+    page = min(max(requested_page, 1), total_pages)
+    start = (page - 1) * per_page
+    return {
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+        "total_pages": total_pages,
+        "offset": start,
+        "first_item": start + 1 if total else 0,
+        "last_item": min(start + per_page, total),
+    }
 
 VALID_EQUIPMENT_STATUSES = {
     "Available",

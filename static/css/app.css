@@ -1781,6 +1781,62 @@ body {
     outline-offset: 3px;
 }
 
+.directory-search {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+}
+
+.directory-search .form-control {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.table-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 1rem;
+    margin-top: 1rem;
+    border-top: 1px solid rgba(39, 42, 48, 0.12);
+}
+
+.table-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.table-pagination-summary,
+.table-pagination-page {
+    color: #6c7480;
+    font-size: 0.86rem;
+}
+
+@media (max-width: 576px) {
+    .directory-search {
+        flex-wrap: wrap;
+    }
+
+    .directory-search .form-control {
+        flex-basis: 100%;
+    }
+
+    .directory-search .btn {
+        flex: 1 1 0;
+    }
+
+    .table-pagination {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .table-pagination-controls {
+        justify-content: space-between;
+    }
+}
+
 .profile-preview-modal {
     position: fixed;
     inset: 0;

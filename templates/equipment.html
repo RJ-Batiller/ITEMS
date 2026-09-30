@@ -1,5 +1,6 @@
 ﻿{% extends "base.html" %}
 
+{% from "_pagination.html" import render_pagination %}
 {% block content %}
 
 <div class="page-heading d-flex justify-content-between align-items-end mb-4 equipment-page-heading">
@@ -199,7 +200,7 @@
             {% endif %}
         </h3>
     </div>
-    <span class="text-muted small">{{ equipment | length }} item{% if equipment | length != 1 %}s{% endif %}</span>
+    <span class="text-muted small">{{ pagination.total }} item{% if pagination.total != 1 %}s{% endif %}</span>
 </div>
 
 <form
@@ -263,7 +264,7 @@
 </form>
 
 <div class="d-flex justify-content-end mb-3">
-    <a href="{{ url_for('equipment', q=q, category=selected_category_id, type=selected_item_type, office=selected_office_id, status=selected_status, export='csv') }}" class="btn btn-outline-dark btn-sm">Export inventory CSV</a>
+    <a href="{{ url_for('equipment', q=q, category=selected_category_id, type=selected_item_type, office=selected_office_id, status=selected_status, export='xlsx') }}" class="btn btn-outline-dark btn-sm">Export inventory Excel</a>
     <a href="{{ url_for('equipment', q=q, category=selected_category_id, type=selected_item_type, office=selected_office_id, status=selected_status, print='1') }}" class="btn btn-outline-secondary btn-sm ms-2" target="_blank" rel="noopener">Print inventory</a>
 </div>
 
@@ -513,6 +514,7 @@
 
 </div>
 
+{{ render_pagination(pagination, 'equipment', pagination_params) }}
     </section>
 </div>
 

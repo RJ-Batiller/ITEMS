@@ -1,7 +1,7 @@
 ﻿"""Equipment catalog, maintenance, accountability, and QR routes."""
 
 from app import *
-from services.report_service import build_csv
+from services.report_service import build_xlsx
 
 
 def _format_request_date(value):
@@ -196,6 +196,10 @@ def equipment():
     status = request.args.get("status", "").strip()
     item_type = request.args.get("type", "").strip()
     try:
+        requested_page = int(request.args.get("page", "1"))
+    except ValueError:
+        requested_page = 1
+    try:
         category_id = int(category_id) if category_id else None
     except ValueError:
         category_id = None
@@ -322,15 +326,18 @@ def equipment():
         ORDER BY e.id DESC
     """
 
-    cur.execute(
-        sql,
-        params
-    )
-
+    count_sql = f"SELECT COUNT(*) AS total FROM ({sql.rsplit(' ORDER BY', 1)[0]}) filtered_equipment"
+    cur.execute(count_sql, params)
+    pagination = build_pagination(cur.fetchone()["total"], requested_page)
+    is_full_output = request.args.get("export") in {"csv", "xlsx"} or request.args.get("print") == "1"
+    if is_full_output:
+        cur.execute(sql, params)
+    else:
+        cur.execute(sql + " LIMIT %s OFFSET %s", [*params, pagination["per_page"], pagination["offset"]])
     rows = cur.fetchall()
 
-    if request.args.get("export") == "csv":
-        content = build_csv([
+    if request.args.get("export") in {"csv", "xlsx"}:
+        content = build_xlsx([
             "Property Number", "Equipment", "Category", "Type", "Office",
             "Serial Number", "Status", "Created By", "Accountable Person", "Acquisition Date",
         ], [
@@ -346,10 +353,10 @@ def equipment():
                 csv_safe(row["accountable_person"]),
                 csv_safe(row["acquisition_date"]),
             ] for row in rows
-        ])
+        ], "Equipment")
         response = make_response(content)
-        response.headers["Content-Type"] = "text/csv; charset=utf-8"
-        response.headers["Content-Disposition"] = "attachment; filename=items-equipment-report.csv"
+        response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        response.headers["Content-Disposition"] = "attachment; filename=items-equipment-report.xlsx"
         return response
 
     equipment_scope = (
@@ -458,6 +465,14 @@ def equipment():
         item_type_counts=item_type_counts,
         status_counts=status_counts,
         can_view_all_equipment=can_view_all,
+        pagination=pagination,
+        pagination_params={
+            "q": q,
+            "category": category_id,
+            "type": item_type,
+            "office": office_id,
+            "status": status,
+        },
     )
 
 

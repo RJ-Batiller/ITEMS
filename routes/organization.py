@@ -2,7 +2,7 @@
 
 from app import *
 from app import _remote_scanner_sessions
-from services.report_service import build_csv
+from services.report_service import build_xlsx
 
 ORGANIZATION_ACTION_GROUPS = {
     "Create": ("Created", "Requested/Create", "Approved/Create", "Rejected/Create"),
@@ -93,6 +93,10 @@ def transactions():
     action = request.args.get("action", "").strip()
     date_from = request.args.get("date_from", "").strip()
     date_to = request.args.get("date_to", "").strip()
+    try:
+        requested_page = int(request.args.get("page", "1"))
+    except ValueError:
+        requested_page = 1
 
     if len(action) > 80:
         action = ""
@@ -180,9 +184,13 @@ def transactions():
         sql += " WHERE " + " AND ".join(filters)
 
     sql += " ORDER BY t.created_at DESC"
-
-    cur.execute(sql, params)
-
+    count_sql = f"SELECT COUNT(*) AS total FROM ({sql.rsplit(' ORDER BY', 1)[0]}) filtered_transactions"
+    cur.execute(count_sql, params)
+    pagination = build_pagination(cur.fetchone()["total"], requested_page)
+    if request.args.get("export") in {"csv", "xlsx"}:
+        cur.execute(sql, params)
+    else:
+        cur.execute(sql + " LIMIT %s OFFSET %s", [*params, pagination["per_page"], pagination["offset"]])
     rows = cur.fetchall()
 
     transaction_actions = tuple(EQUIPMENT_ACTION_GROUPS.keys()) + tuple(EQUIPMENT_STATUS_GROUPS.keys())
@@ -190,8 +198,8 @@ def transactions():
     cur.close()
     conn.close()
 
-    if request.args.get("export") == "csv":
-        content = build_csv([
+    if request.args.get("export") in {"csv", "xlsx"}:
+        content = build_xlsx([
             "Date", "Property Number", "Equipment", "Action", "Details", "Performed By",
         ], [
             [
@@ -202,11 +210,11 @@ def transactions():
                 csv_safe(row["details"]),
                 csv_safe(row["full_name"]),
             ] for row in rows
-        ])
+        ], "Transactions")
 
         response = make_response(content)
-        response.headers["Content-Type"] = "text/csv; charset=utf-8"
-        response.headers["Content-Disposition"] = "attachment; filename=items-transaction-report.csv"
+        response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        response.headers["Content-Disposition"] = "attachment; filename=items-transaction-report.xlsx"
         return response
 
     return render_template(
@@ -216,7 +224,9 @@ def transactions():
         action=action,
         date_from=date_from or "",
         date_to=date_to or "",
-        transaction_actions=transaction_actions
+        transaction_actions=transaction_actions,
+        pagination=pagination,
+        pagination_params={"q": q, "action": action, "date_from": date_from or "", "date_to": date_to or ""},
     )
 
 
@@ -415,6 +425,10 @@ def organization_history():
     q = request.args.get("q", "").strip()
     entity_type = request.args.get("entity_type", "").strip()
     action = request.args.get("action", "").strip()
+    try:
+        requested_page = int(request.args.get("page", "1"))
+    except ValueError:
+        requested_page = 1
     allowed_types = {"Account", "Category", "Office"}
     if entity_type not in allowed_types:
         entity_type = ""
@@ -448,12 +462,44 @@ def organization_history():
     if filters:
         sql += " WHERE " + " AND ".join(filters)
     sql += " ORDER BY h.created_at DESC, h.id DESC"
-    cur.execute(sql, params)
+    count_sql = f"SELECT COUNT(*) AS total FROM ({sql.rsplit(' ORDER BY', 1)[0]}) filtered_history"
+    cur.execute(count_sql, params)
+    pagination = build_pagination(cur.fetchone()["total"], requested_page)
+    if request.args.get("export") in {"csv", "xlsx"}:
+        cur.execute(sql, params)
+    else:
+        cur.execute(sql + " LIMIT %s OFFSET %s", [*params, pagination["per_page"], pagination["offset"]])
     history = cur.fetchall()
     action_options = tuple(ORGANIZATION_ACTION_GROUPS.keys())
     cur.close()
     conn.close()
-    return render_template("organization_history.html", history=history, q=q, entity_type=entity_type, action=action, action_options=action_options)
+    if request.args.get("export") in {"csv", "xlsx"}:
+        content = build_xlsx([
+            "Date", "Type", "Name", "Action", "Details", "Changed By",
+        ], [
+            [
+                row["created_at"].strftime("%Y-%m-%d %H:%M") if row["created_at"] else "",
+                row["entity_type"],
+                row["entity_name"],
+                row["action"],
+                row["details"] or "",
+                row["full_name"],
+            ] for row in history
+        ], "Organization History")
+        response = make_response(content)
+        response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        response.headers["Content-Disposition"] = "attachment; filename=items-organization-history.xlsx"
+        return response
+    return render_template(
+        "organization_history.html",
+        history=history,
+        q=q,
+        entity_type=entity_type,
+        action=action,
+        action_options=action_options,
+        pagination=pagination,
+        pagination_params={"q": q, "entity_type": entity_type, "action": action},
+    )
 
 
 # ============================================================

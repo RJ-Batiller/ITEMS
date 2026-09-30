@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 
+{% from "_pagination.html" import render_pagination %}
 {% block content %}
 
 <div class="d-flex justify-content-between align-items-end mb-4 transaction-heading">
@@ -10,7 +11,7 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
         <a href="{{ url_for('organization_history') }}" class="btn btn-outline-secondary">Organization history</a>
-        <a href="{{ url_for('transactions', q=q, action=action, date_from=date_from, date_to=date_to, export='csv') }}" class="btn btn-outline-dark">Export CSV</a>
+        <a href="{{ url_for('transactions', q=q, action=action, date_from=date_from, date_to=date_to, export='xlsx') }}" class="btn btn-outline-dark">Export Excel</a>
     </div>
 </div>
 
@@ -61,7 +62,7 @@
     <div class="card-body table-responsive">
 
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="small text-muted">{{ transactions | length }} record{% if transactions | length != 1 %}s{% endif %} shown</span>
+            <span class="small text-muted">{{ pagination.total }} record{% if pagination.total != 1 %}s{% endif %} shown</span>
         </div>
 
         <table class="table align-middle">
@@ -141,4 +142,5 @@
 
 </div>
 
+{{ render_pagination(pagination, 'transactions', pagination_params) }}
 {% endblock %}
