@@ -49,10 +49,10 @@
             <div><div class="text-muted small">Accountable Position</div><div>{{ request_row.current_accountable_position or '-' }}</div></div>
             <div><div class="text-muted small">Accountable Office</div><div>{{ request_row.current_accountable_office or '-' }}</div></div>
             <div><div class="text-muted small">Assignment Date and Time</div><div>{{ request_row.current_accountable_assigned_at or '-' }}</div></div>
-            <div><div class="text-muted small">Requested By</div><div>{{ request_row.requested_by_name }}</div></div>
-            <div><div class="text-muted small">Submitted</div><div>{{ request_row.request_created_at }}</div></div>
             <div class="request-info-wide"><div class="text-muted small">Description</div><div class="request-detail-value">{{ request_row.description or '-' }}</div></div>
             <div class="request-info-wide"><div class="text-muted small">Specifications</div><div class="request-detail-value">{{ request_row.specifications or '-' }}</div></div>
+            <div><div class="text-muted small">Requested By</div><div>{{ request_row.requested_by_name }}</div></div>
+            <div><div class="text-muted small">Submitted</div><div>{{ request_row.request_created_at }}</div></div>
         </div>
         <h3 class="h6 text-uppercase text-muted">Requested changes</h3>
         <div class="request-change-list">

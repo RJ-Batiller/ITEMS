@@ -137,10 +137,10 @@
             </tbody>
 
         </table>
+        {{ render_pagination(pagination, 'transactions', pagination_params) }}
 
     </div>
 
 </div>
 
-{{ render_pagination(pagination, 'transactions', pagination_params) }}
 {% endblock %}
