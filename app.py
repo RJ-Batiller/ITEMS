@@ -274,6 +274,27 @@ def db():
     return get_db_connection()
 
 
+@app.route("/health")
+def health():
+    """Provide a safe deployment check for the web process and MySQL."""
+    conn = None
+    cur = None
+    try:
+        conn = db()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.fetchone()
+        return jsonify({"status": "ok", "database": "ok"}), 200
+    except mysql.connector.Error:
+        app.logger.exception("Health check could not reach the database")
+        return jsonify({"status": "error", "database": "unavailable"}), 503
+    finally:
+        if cur is not None:
+            cur.close()
+        if conn is not None:
+            conn.close()
+
+
 def build_pagination(total, requested_page, per_page=10):
     """Return consistent paging metadata for server-rendered list pages."""
     total_pages = max(1, ceil(total / per_page))

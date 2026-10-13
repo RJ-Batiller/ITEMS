@@ -392,6 +392,10 @@ def equipment_transactions(item_id):
 def categories():
 
     q = request.args.get("q", "").strip()
+    try:
+        requested_page = int(request.args.get("page", "1"))
+    except ValueError:
+        requested_page = 1
 
     conn = db()
     cur = conn.cursor(dictionary=True)
@@ -404,8 +408,13 @@ def categories():
     if q:
         sql += " WHERE name LIKE %s OR description LIKE %s"
         params = [f"%{q}%", f"%{q}%"]
-    sql += " ORDER BY name"
-    cur.execute(sql, params)
+    count_sql = "SELECT COUNT(*) AS total FROM categories"
+    if q:
+        count_sql += " WHERE name LIKE %s OR description LIKE %s"
+    cur.execute(count_sql, params)
+    pagination = build_pagination(cur.fetchone()["total"], requested_page)
+    sql += " ORDER BY name LIMIT %s OFFSET %s"
+    cur.execute(sql, [*params, pagination["per_page"], pagination["offset"]])
 
     rows = cur.fetchall()
 
@@ -415,7 +424,9 @@ def categories():
     return render_template(
         "categories.html",
         categories=rows,
-        q=q
+        q=q,
+        pagination=pagination,
+        pagination_params={"q": q},
     )
 
 
@@ -847,6 +858,10 @@ def category_history(category_id):
 @login_required
 def offices():
     q = request.args.get("q", "").strip()
+    try:
+        requested_page = int(request.args.get("page", "1"))
+    except ValueError:
+        requested_page = 1
     conn = db()
     cur = conn.cursor(dictionary=True)
     sql = """
@@ -858,12 +873,23 @@ def offices():
     if q:
         sql += " WHERE o.name LIKE %s OR o.description LIKE %s"
         params = [f"%{q}%", f"%{q}%"]
-    sql += " GROUP BY o.id, o.name, o.description ORDER BY o.name"
-    cur.execute(sql, params)
+    count_sql = "SELECT COUNT(*) AS total FROM offices o"
+    if q:
+        count_sql += " WHERE o.name LIKE %s OR o.description LIKE %s"
+    cur.execute(count_sql, params)
+    pagination = build_pagination(cur.fetchone()["total"], requested_page)
+    sql += " GROUP BY o.id, o.name, o.description ORDER BY o.name LIMIT %s OFFSET %s"
+    cur.execute(sql, [*params, pagination["per_page"], pagination["offset"]])
     rows = cur.fetchall()
     cur.close()
     conn.close()
-    return render_template("offices.html", offices=rows, q=q)
+    return render_template(
+        "offices.html",
+        offices=rows,
+        q=q,
+        pagination=pagination,
+        pagination_params={"q": q},
+    )
 
 
 @app.route("/offices/add", methods=["POST"])

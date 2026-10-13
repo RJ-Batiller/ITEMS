@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_pagination.html" import render_pagination %}
 
 {% block content %}
 <div class="page-heading mb-4">
@@ -48,6 +49,7 @@
             {% endfor %}
             </tbody>
         </table>
+        {{ render_pagination(requests_pagination, 'equipment_requests', pagination_params) }}
         {% else %}
         <div class="empty-state py-5 text-center">
             <h2 class="h5">No pending requests</h2>
@@ -106,6 +108,7 @@
             {% endfor %}
             </tbody>
         </table>
+        {{ render_pagination(action_requests_pagination, 'equipment_requests', pagination_params) }}
         {% else %}
         <div class="empty-state py-4 text-center">
             <p class="text-muted mb-0">No pending equipment action requests.</p>
@@ -141,6 +144,7 @@
             {% endfor %}
             </tbody>
         </table>
+        {{ render_pagination(organization_requests_pagination, 'equipment_requests', pagination_params) }}
         {% else %}<p class="text-muted mb-0">No pending category or office requests.</p>{% endif %}
     </div>
 </div>

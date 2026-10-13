@@ -766,8 +766,14 @@ def equipment_requests():
     # Visiting the request queue marks the current queue as seen. New requests
     # created after this timestamp will make the sidebar indicator reappear.
     session["requests_seen_at"] = philippines_now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        requested_page = int(request.args.get("page", "1"))
+    except ValueError:
+        requested_page = 1
     conn = db()
     cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT COUNT(*) AS total FROM equipment WHERE approval_status = 'Pending'")
+    requests_pagination = build_pagination(cur.fetchone()["total"], requested_page, per_page=5)
     cur.execute("""
         SELECT e.*, c.name AS category_name, o.name AS office_name,
                u.full_name AS requested_by_name, u.username AS requested_by_username
@@ -777,8 +783,11 @@ def equipment_requests():
         JOIN users u ON u.id = e.created_by
         WHERE e.approval_status = 'Pending'
         ORDER BY e.created_at ASC, e.id ASC
-    """)
+        LIMIT %s OFFSET %s
+    """, (requests_pagination["per_page"], requests_pagination["offset"]))
     requests = cur.fetchall()
+    cur.execute("SELECT COUNT(*) AS total FROM equipment_action_requests WHERE status = 'Pending'")
+    action_requests_pagination = build_pagination(cur.fetchone()["total"], requested_page, per_page=5)
     cur.execute("""
         SELECT
             r.*,
@@ -795,8 +804,11 @@ def equipment_requests():
         JOIN users u ON u.id = r.requested_by
         WHERE r.status = 'Pending'
         ORDER BY r.created_at ASC, r.id ASC
-    """)
+        LIMIT %s OFFSET %s
+    """, (action_requests_pagination["per_page"], action_requests_pagination["offset"]))
     action_requests = cur.fetchall()
+    cur.execute("SELECT COUNT(*) AS total FROM organization_requests WHERE status = 'Pending'")
+    organization_requests_pagination = build_pagination(cur.fetchone()["total"], requested_page, per_page=5)
     cur.execute("""
         SELECT
             r.id AS request_id,
@@ -808,7 +820,8 @@ def equipment_requests():
         JOIN users u ON u.id = r.requested_by
         WHERE r.status = 'Pending'
         ORDER BY r.created_at ASC, r.id ASC
-    """)
+        LIMIT %s OFFSET %s
+    """, (organization_requests_pagination["per_page"], organization_requests_pagination["offset"]))
     organization_requests = cur.fetchall()
     for request_row in organization_requests:
         try:
@@ -824,6 +837,10 @@ def equipment_requests():
         requests=requests,
         action_requests=action_requests,
         organization_requests=organization_requests,
+        requests_pagination=requests_pagination,
+        action_requests_pagination=action_requests_pagination,
+        organization_requests_pagination=organization_requests_pagination,
+        pagination_params={},
     )
 
 
@@ -834,8 +851,20 @@ def my_equipment_requests():
         return redirect(url_for("equipment_requests"))
 
     session["requests_seen_at"] = philippines_now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        requested_page = int(request.args.get("page", "1"))
+    except (TypeError, ValueError):
+        requested_page = 1
+
     conn = db()
     cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT COUNT(*) AS total
+        FROM equipment
+        WHERE created_by = %s
+          AND approval_status = 'Pending'
+    """, (g.current_user["id"],))
+    equipment_requests_pagination = build_pagination(cur.fetchone()["total"], requested_page, per_page=5)
     cur.execute("""
         SELECT
             e.id,
@@ -853,9 +882,17 @@ def my_equipment_requests():
         WHERE e.created_by = %s
           AND e.approval_status = 'Pending'
         ORDER BY e.created_at DESC, e.id DESC
-    """, (g.current_user["id"],))
+        LIMIT %s OFFSET %s
+    """, (g.current_user["id"], equipment_requests_pagination["per_page"], equipment_requests_pagination["offset"]))
     equipment_requests = cur.fetchall()
 
+    cur.execute("""
+        SELECT COUNT(*) AS total
+        FROM equipment_action_requests
+        WHERE requested_by = %s
+          AND status = 'Pending'
+    """, (g.current_user["id"],))
+    action_requests_pagination = build_pagination(cur.fetchone()["total"], requested_page, per_page=5)
     cur.execute("""
         SELECT
             r.id AS request_id,
@@ -874,9 +911,17 @@ def my_equipment_requests():
         WHERE r.requested_by = %s
           AND r.status = 'Pending'
         ORDER BY r.created_at DESC, r.id DESC
-    """, (g.current_user["id"],))
+        LIMIT %s OFFSET %s
+    """, (g.current_user["id"], action_requests_pagination["per_page"], action_requests_pagination["offset"]))
     action_requests = cur.fetchall()
 
+    cur.execute("""
+        SELECT COUNT(*) AS total
+        FROM organization_requests
+        WHERE requested_by = %s
+          AND status = 'Pending'
+    """, (g.current_user["id"],))
+    organization_requests_pagination = build_pagination(cur.fetchone()["total"], requested_page, per_page=5)
     cur.execute("""
         SELECT
             r.id AS request_id,
@@ -890,7 +935,8 @@ def my_equipment_requests():
         WHERE r.requested_by = %s
           AND r.status = 'Pending'
         ORDER BY r.created_at DESC, r.id DESC
-    """, (g.current_user["id"],))
+        LIMIT %s OFFSET %s
+    """, (g.current_user["id"], organization_requests_pagination["per_page"], organization_requests_pagination["offset"]))
     organization_requests = cur.fetchall()
 
     cur.execute("""
@@ -980,6 +1026,10 @@ def my_equipment_requests():
         equipment_requests=equipment_requests,
         action_requests=action_requests,
         organization_requests=organization_requests,
+        equipment_requests_pagination=equipment_requests_pagination,
+        action_requests_pagination=action_requests_pagination,
+        organization_requests_pagination=organization_requests_pagination,
+        pagination_params={},
         recent_decisions=recent_decisions,
     )
 
