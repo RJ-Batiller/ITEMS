@@ -28,7 +28,8 @@ def read_profile_picture(uploaded_picture, user_id):
 def users():
     conn = db()
     cur = conn.cursor(dictionary=True)
-    search = clean_text(request.args.get("q", ""), "Search", 120)
+    # The directory search is optional; required form fields use clean_text().
+    search = optional_text(request.args.get("q", ""), 120) or ""
     try:
         requested_page = int(request.args.get("page", "1"))
     except ValueError:
