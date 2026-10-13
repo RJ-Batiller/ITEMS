@@ -1792,6 +1792,12 @@ body {
     flex: 1 1 auto;
 }
 
+.directory-search .btn {
+    flex: 0 0 7rem;
+    min-width: 7rem;
+    white-space: nowrap;
+}
+
 .table-pagination {
     display: flex;
     align-items: center;
@@ -1855,7 +1861,7 @@ body {
     }
 
     .directory-search .btn {
-        flex: 1 1 0;
+        flex: 1 1 100%;
     }
 
     .table-pagination {
@@ -2755,23 +2761,14 @@ body {
     .content-area { padding: 18px 12px; }
 }
 
-/* Keep the phone layout in normal document flow with a quiet, usable scrollbar. */
+/* Keep navigation scrollable without exposing a distracting scrollbar. */
 .sidebar {
-    scrollbar-color: rgba(255, 255, 255, 0.42) rgba(255, 255, 255, 0.08);
-    scrollbar-width: thin;
+    scrollbar-width: none;
 }
 
 .sidebar::-webkit-scrollbar {
-    width: 7px;
-}
-
-.sidebar::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.sidebar::-webkit-scrollbar-thumb {
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.42);
+    display: none;
+    width: 0;
 }
 
 @media (max-width: 900px) {
@@ -2784,22 +2781,12 @@ body {
     }
 
     .sidebar-nav {
-        scrollbar-color: rgba(255, 255, 255, 0.42) rgba(255, 255, 255, 0.08);
-        scrollbar-width: thin;
+        scrollbar-width: none;
     }
 
     .sidebar-nav::-webkit-scrollbar {
-        display: block;
-        height: 6px;
-    }
-
-    .sidebar-nav::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.08);
-    }
-
-    .sidebar-nav::-webkit-scrollbar-thumb {
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.42);
+        display: none;
+        height: 0;
     }
 }
 
@@ -2836,6 +2823,31 @@ body {
     margin-right: 4px;
     place-items: center;
     font-weight: 800;
+}
+
+.field-validation {
+    min-height: 1.15rem;
+    margin-top: 4px;
+    font-size: .72rem;
+    line-height: 1.35;
+}
+
+.field-validation.is-success {
+    color: #216b46;
+}
+
+.field-validation.is-error {
+    color: #a52c41;
+}
+
+.form-control.is-valid {
+    border-color: #2f8a5b;
+    box-shadow: 0 0 0 0.16rem rgba(47, 138, 91, 0.12);
+}
+
+.form-control.is-invalid {
+    border-color: #c92d47;
+    box-shadow: 0 0 0 0.16rem rgba(201, 45, 71, 0.12);
 }
 
 .equipment-page-heading {

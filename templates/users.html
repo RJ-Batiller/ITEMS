@@ -11,20 +11,17 @@
     <div class="col-xl-8">
         <div class="card h-100"><div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3"><div><h2 class="h5 mb-1">Create account</h2><p class="text-muted small mb-0">Available roles follow your permission level.</p></div><span class="status-badge status-available">{{ roles|length }} role options</span></div>
-            <form method="post" action="{{ url_for('add_user') }}" class="row g-3">
+            <form method="post" action="{{ url_for('add_user') }}" class="row g-3" id="create-account-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="col-md-4"><label class="form-label" for="username">Username</label><input class="form-control" id="username" name="username" required></div>
+                <div class="col-md-4"><label class="form-label" for="username">Username</label><input class="form-control" id="username" name="username" required data-unique-field="username" aria-describedby="username-feedback"><div class="field-validation" id="username-feedback" role="status" aria-live="polite"></div></div>
                 <div class="col-md-4"><label class="form-label" for="password">Password</label><input class="form-control" id="password" type="password" minlength="8" name="password" autocomplete="new-password" data-password-strength="#create-password-rules" required><div class="password-rules" id="create-password-rules"><div class="password-rule is-invalid" data-password-rule="length"><span class="password-rule-icon">-</span>8 characters</div><div class="password-rule is-invalid" data-password-rule="special"><span class="password-rule-icon">-</span>At least 1 special character</div><div class="password-rule is-invalid" data-password-rule="uppercase"><span class="password-rule-icon">-</span>At least 1 uppercase letter</div><div class="password-rule is-invalid" data-password-rule="number"><span class="password-rule-icon">-</span>At least 1 number</div></div></div>
-                <div class="col-md-4"><label class="form-label" for="confirm_password">Confirm password</label><input class="form-control" id="confirm_password" type="password" minlength="8" name="confirm_password" autocomplete="new-password" required></div>
+                <div class="col-md-4"><label class="form-label" for="confirm_password">Confirm password</label><input class="form-control" id="confirm_password" type="password" minlength="8" name="confirm_password" autocomplete="new-password" required aria-describedby="confirm-password-feedback"><div class="field-validation" id="confirm-password-feedback" role="status" aria-live="polite"></div></div>
                 <div class="col-md-4"><label class="form-label" for="role_id">Role</label><select class="form-select" id="role_id" name="role_id" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
-                <div class="col-md-5"><label class="form-label" for="full_name">Full name</label><input class="form-control" id="full_name" name="full_name" required></div>
-                <div class="col-md-5"><label class="form-label" for="email">Email</label><input class="form-control" id="email" type="email" name="email"></div>
+                <div class="col-md-5"><label class="form-label" for="full_name">Full name</label><input class="form-control" id="full_name" name="full_name" required data-unique-field="full_name" aria-describedby="full-name-feedback"><div class="field-validation" id="full-name-feedback" role="status" aria-live="polite"></div></div>
+                <div class="col-md-5"><label class="form-label" for="email">Email</label><input class="form-control" id="email" type="email" name="email" data-unique-field="email" aria-describedby="email-feedback"><div class="field-validation" id="email-feedback" role="status" aria-live="polite"></div></div>
                 <div class="col-md-2 d-flex align-items-end"><button class="btn btn-primary w-100">Create</button></div>
             </form>
         </div></div>
-    </div>
-    <div class="col-xl-4"><div class="card h-100"><div class="card-body"><div class="catalog-kicker">Your access</div><h2 class="h5 mt-2">{{ g.current_user.full_name }}</h2><p class="text-muted mb-3">{{ g.current_user.role_name }} account</p><a class="btn btn-outline-danger" href="{{ url_for('profile') }}">Open My Profile</a><p class="small text-muted mt-3 mb-0">{% if g.current_user.role_name|lower == 'super admin' %}You can update Admin and Staff accounts.{% else %}You can update Staff accounts.{% endif %} Passwords are always stored as secure hashes and never revealed.</p></div></div></div>
-</div>
 
 <div class="card"><div class="card-body table-responsive">
     <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h5 mb-0">Team directory</h2><span class="text-muted small">{{ pagination.total }} account(s){% if search %} matching{% endif %}</span></div>
@@ -41,6 +38,7 @@
     </tbody></table>
     {{ render_pagination(pagination, 'users', pagination_params) }}
 </div></div>
+<script type="application/json" id="existing-user-values">{{ existing_user_values|tojson }}</script>
 <div class="profile-preview-modal" id="profile-preview-modal" role="dialog" aria-modal="true" aria-labelledby="profile-preview-title" hidden>
     <div class="profile-preview-modal-content"><button type="button" class="profile-preview-close" id="profile-preview-close" aria-label="Close preview">&times;</button><h2 class="h5" id="profile-preview-title">Profile picture</h2><img id="profile-preview-image" class="profile-preview-large" src="" alt=""><div id="profile-preview-fallback" class="profile-preview-large profile-preview-fallback" hidden></div></div>
 </div>
@@ -79,5 +77,54 @@ profilePreviewModal.addEventListener('click', function (event) {
 document.addEventListener('keydown', function (event) {
     if (event.key === 'Escape' && !profilePreviewModal.hidden) closeProfilePreview();
 });
+
+(function () {
+    var form = document.getElementById('create-account-form');
+    var valuesNode = document.getElementById('existing-user-values');
+    if (!form || !valuesNode) return;
+
+    var existing = [];
+    try { existing = JSON.parse(valuesNode.textContent || '[]'); } catch (error) { existing = []; }
+    var labels = { username: 'Username', full_name: 'Full name', email: 'Email' };
+
+    function normalized(value) { return (value || '').trim().toLowerCase(); }
+
+    function updateUnique(field) {
+        var value = normalized(field.value);
+        var feedback = document.getElementById(field.id + '-feedback');
+        var duplicate = value && existing.some(function (user) {
+            return normalized(user[field.dataset.uniqueField]) === value;
+        });
+        field.setCustomValidity(duplicate ? labels[field.dataset.uniqueField] + ' is already in use.' : '');
+        field.classList.toggle('is-invalid', Boolean(duplicate));
+        field.classList.toggle('is-valid', Boolean(value) && !duplicate);
+        if (feedback) {
+            feedback.textContent = duplicate ? labels[field.dataset.uniqueField] + ' is already in use.' : (value ? 'Available' : '');
+            feedback.classList.toggle('is-error', Boolean(duplicate));
+            feedback.classList.toggle('is-success', Boolean(value) && !duplicate);
+        }
+    }
+
+    form.querySelectorAll('[data-unique-field]').forEach(function (field) {
+        field.addEventListener('input', function () { updateUnique(field); });
+        updateUnique(field);
+    });
+
+    var password = form.querySelector('#password');
+    var confirmation = form.querySelector('#confirm_password');
+    var matchFeedback = document.getElementById('confirm-password-feedback');
+    function updatePasswordMatch() {
+        var hasValue = Boolean(confirmation.value);
+        var matches = hasValue && password.value === confirmation.value;
+        confirmation.setCustomValidity(hasValue && !matches ? 'Passwords do not match.' : '');
+        confirmation.classList.toggle('is-invalid', hasValue && !matches);
+        confirmation.classList.toggle('is-valid', matches);
+        matchFeedback.textContent = hasValue ? (matches ? 'Passwords match.' : 'Passwords do not match.') : '';
+        matchFeedback.classList.toggle('is-error', hasValue && !matches);
+        matchFeedback.classList.toggle('is-success', matches);
+    }
+    password.addEventListener('input', updatePasswordMatch);
+    confirmation.addEventListener('input', updatePasswordMatch);
+}());
 </script>
 {% endblock %}

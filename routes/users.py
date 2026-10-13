@@ -92,6 +92,9 @@ def users():
 
     roles = cur.fetchall()
 
+    cur.execute("SELECT username, full_name, email FROM users")
+    existing_user_values = cur.fetchall()
+
     cur.close()
     conn.close()
 
@@ -102,6 +105,7 @@ def users():
         pagination=pagination,
         pagination_params={"q": search},
         roles=roles,
+        existing_user_values=existing_user_values,
         restrictable_features=RESTRICTABLE_FEATURES
     )
 
@@ -178,6 +182,32 @@ def add_user():
 
     conn = db()
     cur = conn.cursor(dictionary=True)
+
+    cur.execute("""
+        SELECT username, full_name, email
+        FROM users
+        WHERE LOWER(username) = LOWER(%s)
+           OR LOWER(full_name) = LOWER(%s)
+           OR (
+                email IS NOT NULL
+                AND email <> ''
+                AND LOWER(email) = LOWER(%s)
+           )
+        LIMIT 1
+    """, (username, full_name, email))
+    existing_user = cur.fetchone()
+    if existing_user:
+        duplicate_fields = []
+        if existing_user["username"].strip().lower() == username.lower():
+            duplicate_fields.append("Username")
+        if existing_user["full_name"].strip().lower() == full_name.lower():
+            duplicate_fields.append("Full name")
+        if email and existing_user.get("email") and existing_user["email"].strip().lower() == email.lower():
+            duplicate_fields.append("Email")
+        cur.close()
+        conn.close()
+        flash(f"{' and '.join(duplicate_fields)} already in use.", "danger")
+        return redirect(url_for("users"))
 
     # ========================================================
     # CHECK SELECTED ROLE
