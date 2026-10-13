@@ -855,6 +855,10 @@ def my_equipment_requests():
         requested_page = int(request.args.get("page", "1"))
     except (TypeError, ValueError):
         requested_page = 1
+    try:
+        decisions_page = int(request.args.get("decisions_page", "1"))
+    except (TypeError, ValueError):
+        decisions_page = 1
 
     conn = db()
     cur = conn.cursor(dictionary=True)
@@ -947,7 +951,6 @@ def my_equipment_requests():
           AND approval_status <> 'Pending'
           AND review_acknowledged_at IS NULL
         ORDER BY reviewed_at DESC, id DESC
-        LIMIT 10
     """, (g.current_user["id"],))
     recent_decisions = cur.fetchall()
 
@@ -961,7 +964,6 @@ def my_equipment_requests():
           AND r.status <> 'Pending'
           AND r.review_acknowledged_at IS NULL
         ORDER BY r.reviewed_at DESC, r.id DESC
-        LIMIT 10
     """, (g.current_user["id"],))
     recent_decisions.extend(cur.fetchall())
 
@@ -973,7 +975,6 @@ def my_equipment_requests():
           AND r.status <> 'Pending'
           AND r.review_acknowledged_at IS NULL
         ORDER BY r.reviewed_at DESC, r.id DESC
-        LIMIT 10
     """, (g.current_user["id"],))
     recent_organization = cur.fetchall()
     cur.close()
@@ -1000,12 +1001,17 @@ def my_equipment_requests():
             "confirm_kind": "organization",
         })
 
+    recent_decisions.sort(key=lambda row: row.get("reviewed_at") or datetime.min, reverse=True)
     for request_row in recent_decisions:
         request_row.setdefault("request_id", request_row.get("id"))
         request_row.setdefault("subject", request_row.get("name") or request_row.get("equipment_name") or request_row.get("asset_code") or "Equipment")
         request_row.setdefault("confirm_kind", "equipment" if request_row.get("request_type") == "Equipment submission" else "action")
         request_row["reviewed_at"] = _format_request_date(request_row["reviewed_at"])
-    recent_decisions = recent_decisions[:10]
+    recent_decisions_pagination = build_pagination(len(recent_decisions), decisions_page, per_page=5)
+    recent_decisions = recent_decisions[
+        recent_decisions_pagination["offset"]:
+        recent_decisions_pagination["offset"] + recent_decisions_pagination["per_page"]
+    ]
 
     for request_row in action_requests:
         try:
@@ -1031,6 +1037,7 @@ def my_equipment_requests():
         organization_requests_pagination=organization_requests_pagination,
         pagination_params={},
         recent_decisions=recent_decisions,
+        recent_decisions_pagination=recent_decisions_pagination,
     )
 
 

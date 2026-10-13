@@ -107,6 +107,7 @@
             {% endfor %}
             </tbody>
         </table>
+        {{ render_pagination(recent_decisions_pagination, 'my_equipment_requests', {}, 'decisions_page') }}
     </div>
 </div>
 {% endif %}
