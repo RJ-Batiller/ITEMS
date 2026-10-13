@@ -22,6 +22,9 @@
                 <div class="col-md-2 d-flex align-items-end"><button class="btn btn-primary w-100">Create</button></div>
             </form>
         </div></div>
+    </div>
+    <div class="col-xl-4"><div class="card h-100"><div class="card-body"><div class="catalog-kicker">Your access</div><h2 class="h5 mt-2">{{ g.current_user.full_name }}</h2><p class="text-muted mb-3">{{ g.current_user.role_name }} account</p><a class="btn btn-outline-danger" href="{{ url_for('profile') }}">Open My Profile</a><p class="small text-muted mt-3 mb-0">{% if g.current_user.role_name|lower == 'super admin' %}You can update Admin and Staff accounts.{% else %}You can update Staff accounts.{% endif %} Passwords are always stored as secure hashes and never revealed.</p></div></div></div>
+</div>
 
 <div class="card"><div class="card-body table-responsive">
     <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h5 mb-0">Team directory</h2><span class="text-muted small">{{ pagination.total }} account(s){% if search %} matching{% endif %}</span></div>
