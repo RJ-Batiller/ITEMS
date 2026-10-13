@@ -60,7 +60,19 @@ def users():
         """
         search_pattern = f"%{search}%"
         user_params.extend([search_pattern] * 4)
-    count_query = f"SELECT COUNT(*) AS total FROM ({user_query}) filtered_users"
+    count_query = """
+        SELECT COUNT(*) AS total
+        FROM users u
+        JOIN roles r
+            ON u.role_id = r.id
+    """
+    if search:
+        count_query += """
+            WHERE u.username LIKE %s
+               OR u.full_name LIKE %s
+               OR u.email LIKE %s
+               OR r.name LIKE %s
+        """
     cur.execute(count_query, tuple(user_params))
     pagination = build_pagination(cur.fetchone()["total"], requested_page)
     user_query += " ORDER BY u.id DESC LIMIT %s OFFSET %s"
