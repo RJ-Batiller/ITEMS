@@ -1170,7 +1170,7 @@ def _remote_scanner_session(token):
 
 
 def _remote_scanner_url(token):
-    path = url_for("remote_scanner", token=token)
+    path = url_for("short_remote_scanner", token=token)
     public_base_url = os.getenv("APP_PUBLIC_URL", "").strip().rstrip("/")
 
     # Do not send phone users to the example domain when the deployment has
@@ -1193,7 +1193,8 @@ def start_remote_scanner():
         if remote["expires_at"] <= now:
             _remote_scanner_sessions.pop(token, None)
 
-    token = secrets.token_urlsafe(24)
+    # Keep the QR payload compact while retaining 64 bits of random token data.
+    token = secrets.token_urlsafe(8)
     _remote_scanner_sessions[token] = {
         "user_id": session["user_id"],
         "expires_at": now + REMOTE_SCANNER_TTL_SECONDS,
@@ -1205,6 +1206,15 @@ def start_remote_scanner():
 
 @app.route("/qr-scanner/remote/<token>")
 def remote_scanner(token):
+    return _render_remote_scanner(token, url_for("remote_scanner", token=token, _external=False).rsplit("/", 1)[0])
+
+
+@app.route("/s/<token>")
+def short_remote_scanner(token):
+    return _render_remote_scanner(token, url_for("short_remote_scanner", token=token, _external=False).rsplit("/", 1)[0])
+
+
+def _render_remote_scanner(token, endpoint_prefix):
     if not _remote_scanner_session(token):
         return render_template(
             "error.html",
@@ -1212,7 +1222,7 @@ def remote_scanner(token):
             title="Scanner session expired",
             message="Start a new phone scanner session from the computer.",
         ), 410
-    return render_template("remote_scanner.html", token=token)
+    return render_template("remote_scanner.html", token=token, endpoint_prefix=endpoint_prefix)
 
 
 @app.route("/qr-scanner/remote/<token>/qr")
@@ -1243,6 +1253,11 @@ def receive_remote_scan(token):
 
     remote["asset_code"] = asset_code
     return jsonify({"ok": True})
+
+
+@app.route("/s/<token>/scan", methods=["POST"])
+def receive_short_remote_scan(token):
+    return receive_remote_scan(token)
 
 
 @app.route("/qr-scanner/remote/<token>/result")

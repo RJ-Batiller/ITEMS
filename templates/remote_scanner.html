@@ -15,7 +15,7 @@
     </style>
 </head>
 <body>
-    <main id="remote-scanner" data-token="{{ token }}">
+    <main id="remote-scanner" data-token="{{ token }}" data-endpoint-prefix="{{ endpoint_prefix }}">
         <h1>Phone Equipment Scanner</h1>
         <p>Point your phone camera at the equipment QR code.</p>
         <div id="reader"></div>
@@ -24,6 +24,7 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script>
         const token = document.getElementById("remote-scanner").dataset.token;
+        const endpointPrefix = document.getElementById("remote-scanner").dataset.endpointPrefix;
         let lastValue = "";
         let scanner;
 
@@ -31,7 +32,7 @@
             if (!value || value === lastValue) return;
             lastValue = value;
             document.getElementById("status").textContent = "Scan sent to the computer: " + value;
-            fetch(`/qr-scanner/remote/${encodeURIComponent(token)}/scan`, {
+            fetch(`${endpointPrefix}/${encodeURIComponent(token)}/scan`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ asset_code: value.trim() })
