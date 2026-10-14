@@ -30,11 +30,6 @@
             <span>All Equipment</span>
             <span class="equipment-category-count">{{ categories | sum(attribute='equipment_count') }}</span>
         </a>
-
-        <div class="equipment-sidebar-heading mt-4">Item Type</div>
-        <a href="{{ url_for('equipment', type='Consumable', q=q) }}" class="equipment-category-link {% if selected_item_type == 'Consumable' %}is-active{% endif %}"><span>Consumables</span><span class="equipment-category-count">{{ item_type_counts.get('Consumable', 0) }}</span></a>
-        <a href="{{ url_for('equipment', type='Non-Consumable', q=q) }}" class="equipment-category-link {% if selected_item_type == 'Non-Consumable' %}is-active{% endif %}"><span>Non-Consumables</span><span class="equipment-category-count">{{ item_type_counts.get('Non-Consumable', 0) }}</span></a>
-
         <div class="equipment-sidebar-heading mt-4">Categories</div>
         {% for c in categories %}
         <a
