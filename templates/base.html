@@ -50,8 +50,8 @@
 <div class="sidebar-nav-group">
 <span class="sidebar-nav-label">Administration</span>
 <div class="sidebar-nav-links">
-{% if session.get('role') in ['Super Admin', 'Admin'] %}<a class="{{ 'is-active' if request.endpoint in ['equipment_requests', 'approve_equipment_request', 'reject_equipment_request', 'approve_equipment_action_request', 'reject_equipment_action_request', 'approve_organization_request', 'reject_organization_request', 'view_organization_request'] else '' }}" href="{{ url_for('equipment_requests') }}"><span class="sidebar-nav-icon icon-requests" aria-hidden="true"></span><span class="sidebar-link-label">Requests</span>{% if pending_requests %}<span class="sidebar-notification-badge" aria-label="{{ pending_requests }} pending requests">{{ pending_requests if pending_requests < 100 else "99+" }}</span>{% endif %}</a>{% endif %}
-{% if session.get('role') == 'Staff' %}<a class="{{ 'is-active' if request.endpoint == 'my_equipment_requests' else '' }}" href="{{ url_for('my_equipment_requests') }}"><span class="sidebar-nav-icon icon-requests" aria-hidden="true"></span><span class="sidebar-link-label">My Requests</span>{% if pending_requests %}<span class="sidebar-notification-badge" aria-label="{{ pending_requests }} pending requests">{{ pending_requests if pending_requests < 100 else "99+" }}</span>{% endif %}</a>{% endif %}
+{% if session.get('role') in ['Super Admin', 'Admin'] %}<a class="{{ 'is-active' if request.endpoint in ['equipment_requests', 'approve_equipment_request', 'reject_equipment_request', 'approve_equipment_action_request', 'reject_equipment_action_request', 'approve_organization_request', 'reject_organization_request', 'view_organization_request'] else '' }}" href="{{ url_for('equipment_requests') }}"><span class="sidebar-nav-icon icon-requests" aria-hidden="true"></span><span class="sidebar-link-label">Requests</span><span class="sidebar-notification-badge" data-request-badge aria-label="{{ pending_requests }} pending requests"{% if not pending_requests %} hidden{% endif %}>{{ pending_requests if pending_requests < 100 else "99+" }}</span></a>{% endif %}
+{% if session.get('role') == 'Staff' %}<a class="{{ 'is-active' if request.endpoint == 'my_equipment_requests' else '' }}" href="{{ url_for('my_equipment_requests') }}"><span class="sidebar-nav-icon icon-requests" aria-hidden="true"></span><span class="sidebar-link-label">My Requests</span><span class="sidebar-notification-badge" data-request-badge aria-label="{{ pending_requests }} pending requests"{% if not pending_requests %} hidden{% endif %}>{{ pending_requests if pending_requests < 100 else "99+" }}</span></a>{% endif %}
 <a class="{{ 'is-active' if request.endpoint in ['categories', 'category_history'] else '' }}" href="{{ url_for('categories') }}"><span class="sidebar-nav-icon icon-categories" aria-hidden="true"></span><span class="sidebar-link-label">Categories</span></a>
 <a class="{{ 'is-active' if request.endpoint in ['offices', 'office_history'] else '' }}" href="{{ url_for('offices') }}"><span class="sidebar-nav-icon icon-offices" aria-hidden="true"></span><span class="sidebar-link-label">Offices</span></a>
 <a class="{{ 'is-active' if request.endpoint == 'organization_history' else '' }}" href="{{ url_for('organization_history') }}"><span class="sidebar-nav-icon icon-history" aria-hidden="true"></span><span class="sidebar-link-label">Org. History</span></a>
@@ -145,6 +145,35 @@
             }
         });
     }
+}());
+</script>
+<script>
+(function () {
+    var badges = document.querySelectorAll('[data-request-badge]');
+    if (!badges.length) return;
+
+    function refreshRequestBadge() {
+        fetch('{{ url_for("sidebar_notifications") }}', {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store'
+        }).then(function (response) {
+            if (!response.ok) throw new Error('Notification refresh failed');
+            return response.json();
+        }).then(function (data) {
+            var count = Number(data.pending_requests) || 0;
+            badges.forEach(function (badge) {
+                badge.hidden = count === 0;
+                badge.textContent = count > 99 ? '99+' : String(count);
+                badge.setAttribute('aria-label', count + ' pending requests');
+            });
+        }).catch(function () {
+            // Keep the last known badge state if the database is temporarily unavailable.
+        });
+    }
+
+    refreshRequestBadge();
+    window.setInterval(refreshRequestBadge, 10000);
 }());
 </script>
 </body>

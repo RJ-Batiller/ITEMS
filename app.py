@@ -155,48 +155,40 @@ def inject_sidebar_notifications():
         """, (user_id, user_id, user_id))
         notifications["unread_messages"] = cur.fetchone()["total"]
 
-        requests_seen_at = session.get("requests_seen_at")
-        request_created_filter = " AND created_at > %s" if requests_seen_at else ""
-        request_params = (requests_seen_at,) if requests_seen_at else ()
-
         if role in MANAGEMENT_ROLES:
             cur.execute(
                 "SELECT COUNT(*) AS total FROM equipment "
-                "WHERE approval_status = 'Pending'" + request_created_filter,
-                request_params,
+                "WHERE approval_status = 'Pending'",
             )
             equipment_count = cur.fetchone()["total"]
             cur.execute(
                 "SELECT COUNT(*) AS total FROM equipment_action_requests "
-                "WHERE status = 'Pending'" + request_created_filter,
-                request_params,
+                "WHERE status = 'Pending'",
             )
             action_count = cur.fetchone()["total"]
             cur.execute(
                 "SELECT COUNT(*) AS total FROM organization_requests "
-                "WHERE status = 'Pending'" + request_created_filter,
-                request_params,
+                "WHERE status = 'Pending'",
             )
             organization_count = cur.fetchone()["total"]
             notifications["pending_requests"] = equipment_count + action_count + organization_count
         elif role == STAFF_ROLE:
-            staff_params = (user_id,) + request_params
             cur.execute(
                 "SELECT COUNT(*) AS total FROM equipment "
-                "WHERE created_by = %s AND approval_status = 'Pending'" + request_created_filter,
-                staff_params,
+                "WHERE created_by = %s AND approval_status = 'Pending'",
+                (user_id,),
             )
             equipment_count = cur.fetchone()["total"]
             cur.execute(
                 "SELECT COUNT(*) AS total FROM equipment_action_requests "
-                "WHERE requested_by = %s AND status = 'Pending'" + request_created_filter,
-                staff_params,
+                "WHERE requested_by = %s AND status = 'Pending'",
+                (user_id,),
             )
             action_count = cur.fetchone()["total"]
             cur.execute(
                 "SELECT COUNT(*) AS total FROM organization_requests "
-                "WHERE requested_by = %s AND status = 'Pending'" + request_created_filter,
-                staff_params,
+                "WHERE requested_by = %s AND status = 'Pending'",
+                (user_id,),
             )
             organization_count = cur.fetchone()["total"]
             notifications["pending_requests"] = equipment_count + action_count + organization_count
@@ -208,6 +200,14 @@ def inject_sidebar_notifications():
         if conn:
             conn.close()
     return notifications
+
+
+@app.route("/notifications/sidebar")
+def sidebar_notifications():
+    """Return current sidebar counts so badges can refresh without navigation."""
+    if not session.get("user_id"):
+        return jsonify({"unread_messages": 0, "pending_requests": 0})
+    return jsonify(inject_sidebar_notifications())
 
 
 @app.before_request

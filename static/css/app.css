@@ -3727,6 +3727,10 @@ body {
     white-space: nowrap;
 }
 
+.sidebar-notification-badge[hidden] {
+    display: none;
+}
+
 .topbar-account-copy small {
     color: var(--muted);
     font-size: 0.58rem;
