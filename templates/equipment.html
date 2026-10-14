@@ -48,13 +48,6 @@
         <p class="small text-muted px-2">No categories yet.</p>
         {% endfor %}
 
-        <a
-            href="{{ url_for('equipment', status='Disposed', q=q) }}"
-            class="equipment-category-link {% if selected_status == 'Disposed' %}is-active{% endif %}"
-        >
-            <span>Disposed</span>
-            <span class="equipment-category-count">{{ status_counts.get('Disposed', 0) }}</span>
-        </a>
     </aside>
 
     <section class="equipment-catalog-content">
@@ -147,13 +140,6 @@
                 </div>
             </div>
 
-            <div class="col-md-3">
-                <select class="form-select" name="item_type" required>
-                    <option value="" selected disabled>Item type</option>
-                    <option value="Consumable">Consumable</option>
-                    <option value="Non-Consumable">Non-Consumable</option>
-                </select>
-            </div>
 
 
             <div class="col-12">
