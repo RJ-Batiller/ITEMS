@@ -110,7 +110,9 @@ EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 _remote_scanner_sessions = {}
-REMOTE_SCANNER_TTL_SECONDS = 300
+# Keep an active phone-scanner session available for a presentation session.
+# The expiry is refreshed whenever the computer or phone uses the token.
+REMOTE_SCANNER_TTL_SECONDS = 30 * 60
 _login_failures = {}
 LOGIN_MAX_ATTEMPTS = 5
 LOGIN_RATE_WINDOW_SECONDS = 15 * 60
@@ -221,7 +223,12 @@ def sidebar_notifications():
 @app.before_request
 def protect_state_changing_requests():
     if request.method == "POST":
-        if request.path.startswith("/qr-scanner/remote/"):
+        # Phone scanner pages are anonymous and submit the short token URL
+        # instead of a browser form with the computer's CSRF token.
+        if (
+            request.path.startswith("/qr-scanner/remote/")
+            or request.path.startswith("/s/")
+        ):
             return None
         submitted = request.form.get("csrf_token", "")
         expected = session.get("csrf_token", "")

@@ -207,8 +207,6 @@ function startRemoteScanner() {
                     .then(response => response.ok ? response.json() : null)
                     .then(result => {
                         if (result && result.asset_code) {
-                            clearInterval(remotePollTimer);
-                            remotePollTimer = null;
                             loadByAssetCode(result.asset_code);
                             document.getElementById("scanStatus").textContent = "Phone scan received.";
                         }

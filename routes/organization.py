@@ -1163,9 +1163,12 @@ def equipment_qr_print(item_id):
 
 def _remote_scanner_session(token):
     remote = _remote_scanner_sessions.get(token)
-    if not remote or remote["expires_at"] <= datetime.now().timestamp():
+    now = datetime.now().timestamp()
+    if not remote or remote["expires_at"] <= now:
         _remote_scanner_sessions.pop(token, None)
         return None
+    # Use a sliding timeout so repeated scans do not expire during active use.
+    remote["expires_at"] = now + REMOTE_SCANNER_TTL_SECONDS
     return remote
 
 
